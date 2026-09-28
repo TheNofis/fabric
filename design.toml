@@ -2,10 +2,10 @@
 
 [color]
 background = "#1E2326"
-surface = "rgba(16, 20, 23, 0.55)"
-surface_alt = "rgba(16, 20, 23, 0.55)"
+surface = "rgba(16, 20, 23, 0.20)"
+surface_alt = "rgba(16, 20, 23, 0.20)"
 surface_critical = "rgba(90, 36, 38, 0.6)"
-notification = "rgba(16, 20, 23, 0.55)"
+notification = "rgba(16, 20, 23, 0.20)"
 notification_critical = "rgba(90, 36, 38, 0.6)"
 foreground = "#F4F0E8"
 muted = "alpha(#F4F0E8, 0.72)"

@@ -1,9 +1,9 @@
 /* Runtime GTK color projection of design.toml. */
 @define-color bg #1E2326;
-@define-color surface rgba(16, 20, 23, 0.55);
-@define-color surface_alt rgba(16, 20, 23, 0.55);
+@define-color surface rgba(16, 20, 23, 0.20);
+@define-color surface_alt rgba(16, 20, 23, 0.20);
 @define-color surface_critical rgba(90, 36, 38, 0.6);
-@define-color notification rgba(16, 20, 23, 0.55);
+@define-color notification rgba(16, 20, 23, 0.20);
 @define-color notification_critical rgba(90, 36, 38, 0.6);
 @define-color fg #F4F0E8;
 @define-color muted alpha(#F4F0E8, 0.72);
