@@ -1,208 +1,237 @@
 @import url("styles/tokens.css");
 
-/* Compatibility aliases; canonical values live in design.toml. */
-@define-color fg @fg;
-@define-color grey1 @icon;
-@define-color grey2 @muted;
-@define-color green @accent;
-@define-color red @critical;
-@define-color cyan @info;
+/* Glass surfaces: blur comes from picom; the tint is in tokens, the hairline border plus
+   an inset top highlight give the edge the lift macOS materials have. No text shadows. */
 
 * {
   all: unset;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-  font-family: "JetBrainsMono Nerd Font";
+  font-family: "Inter", "Symbols Nerd Font", sans-serif;
+  font-feature-settings: "tnum, cv11";
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 window { background-color: transparent; }
-tooltip { background-color: @surface_alt; color: @fg; border-radius: 8px; padding: 4px 8px; }
+tooltip {
+  background-color: @bg_panel;
+  border: 1px solid @border;
+  color: @fg;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 12px;
+}
 #bar { padding: 5px 30px 0; }
 
 .island {
-  background-color: @surface;
+  background-color: @bg_bar;
   border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
   border-radius: 12px;
   padding: 0 16px;
   color: @fg;
 }
 
-.icon { color: @grey1; font-size: 14px; }
+.icon { color: @icon; font-size: 14px; }
+/* Bar metrics stay monospaced so the islands do not jitter as numbers change. */
+.island .value, .time { font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 12px; }
 .value { color: @fg; }
-.muted, .arrow { color: @grey2; }
-.time { color: @fg; font-weight: 700; }
+.muted, .arrow { color: @muted; }
+.time { color: @fg; font-weight: 600; }
 .w-pct { min-width: 38px; }
 .w-speed { min-width: 44px; }
-.alert .icon, .alert .value { color: @red; }
+.alert .icon, .alert .value { color: @critical; }
 
 .caps {
   color: @bg;
-  background-color: @cyan;
-  text-shadow: none;
-  border-radius: 5px;
-  padding: 0 5px;
-  margin: 8px 0;
-  font-size: 11px;
+  background-color: @info;
+  border-radius: 999px;
+  padding: 0 7px;
+  margin: 9px 0;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
+/* Workspaces: concentric with the island (12px radius - 5px margin = 7px). */
 .workspaces { padding: 0 5px; }
 .ws {
-  min-width: 38px;
-  margin: 5px 0;
-  border-radius: 8px;
-  color: @grey2;
-  transition: background-color 220ms ease-out, color 220ms ease-out;
+  min-width: 34px;
+  margin: 5px 1px;
+  border-radius: 7px;
+  color: @muted;
+  font-weight: 500;
+  background-color: transparent;
+  transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1), color 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-.ws { background-color: alpha(@fg, 0.06); margin: 5px 1px; }
-.ws:hover { color: @fg; background-color: alpha(@fg, 0.12); }
+.ws:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .ws.visible { color: @fg; }
-.ws.focused { color: @bg; background-color: @green; font-weight: 700; }
-.ws.urgent { color: @bg; background-color: @red; }
+.ws.focused { color: white; background-color: @accent_fill; font-weight: 600; }
+.ws.urgent { color: white; background-color: @critical_fill; }
 
+/* Sliders: white fill like Control Center; accent is reserved for selection and focus. */
 .vol-slider { margin-right: 4px; }
-.vol-slider trough { min-width: 88px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.22); }
+.vol-slider trough { min-width: 88px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
 .vol-slider highlight { background-color: @fg; border-radius: 2px; }
-.vol-slider slider { min-width: 10px; min-height: 10px; margin: -3px 0; border-radius: 5px; background-color: @fg; }
+.vol-slider slider { min-width: 12px; min-height: 12px; margin: -4px 0; border-radius: 6px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
 
 .popup {
   border: 1px solid @border;
-  background-color: @surface_alt;
-  border-radius: 12px;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 18px;
   padding: 14px 16px;
   color: @fg;
 }
-.popup-title { color: @grey2; }
+.popup-title { color: @muted; }
 .cal { padding: 2px; }
-.cal.header { color: @fg; font-weight: 700; }
-.cal.button { color: @grey2; }
-.cal:selected { color: @bg; background-color: @green; border-radius: 6px; }
-.cal:indeterminate { color: alpha(@fg, 0.35); }
+.cal.header { color: @fg; font-weight: 600; }
+.cal.button { color: @muted; }
+.cal:selected { color: white; background-color: @accent_fill; border-radius: 999px; font-weight: 600; }
+.cal:indeterminate { color: alpha(@fg, 0.30); }
 
 .music-popup {
   border: 1px solid @border;
-  background-color: @surface_alt;
-  border-radius: 16px;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 22px;
   padding: 16px 18px;
   color: @fg;
 }
 .music-popup-head { min-width: 384px; }
-.music-disc { min-width: 42px; min-height: 42px; border-radius: 12px; background-color: rgba(167, 192, 128, 0.14); }
-.music-disc-icon { color: @green; font-size: 20px; }
-.music-cover { min-width: 42px; min-height: 42px; border-radius: 12px; }
-.music-popup-kicker { color: @grey2; font-size: 10px; letter-spacing: 0.12em; }
-.music-popup-title { color: @fg; font-size: 14px; font-weight: 700; }
-.music-popup-artist { color: @grey2; font-size: 11px; }
-.music-close, .music-button { min-width: 24px; min-height: 24px; border-radius: 7px; color: @fg; }
-.music-close { color: @grey2; }
+.music-disc { min-width: 48px; min-height: 48px; border-radius: 10px; background-color: alpha(@fg, 0.08); }
+.music-disc-icon { color: @muted; font-size: 22px; }
+.music-cover { min-width: 48px; min-height: 48px; border-radius: 10px; }
+.music-popup-kicker { color: @muted; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+.music-popup-title { color: @fg; font-size: 15px; font-weight: 600; }
+.music-popup-artist { color: @muted; font-size: 12px; }
+.music-close, .music-button { min-width: 24px; min-height: 24px; border-radius: 999px; color: @fg; }
+.music-close { color: @muted; }
 
+/* Transport is bare glyphs, play is simply larger (Now Playing style). */
 .music-controls { padding: 2px 0; }
-.music-controls .music-button { min-width: 38px; min-height: 38px; }
-.music-control-icon { font-size: 18px; }
-.music-main.music-control-icon { color: @green; font-size: 20px; }
+.music-controls .music-button { min-width: 40px; min-height: 40px; }
+.music-control-icon { font-size: 20px; }
+.music-main.music-control-icon { font-size: 26px; }
 .music-track { margin-top: 2px; }
-.music-progress trough { min-width: 384px; min-height: 5px; border-radius: 3px; background-color: alpha(white, 0.22); }
-.music-progress progress { min-height: 5px; border-radius: 3px; background-color: @green; }
-.music-track-times, .music-time { color: @grey2; font-size: 11px; }
+.music-progress trough { min-width: 384px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
+.music-progress progress { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
+.music-track-times, .music-time { color: @muted; font-size: 11px; }
 .music-time { min-width: 36px; }
 
 .volume-osd {
   border: 1px solid @border;
-  background-color: @surface_alt;
-  border-radius: 18px;
-  padding: 10px 12px;
+  background-color: @bg_panel;
+  border-radius: 22px;
+  padding: 10px 14px;
   color: @fg;
-  box-shadow: 0 16px 36px rgba(23, 28, 31, 0.42);
+  box-shadow: inset 0 1px @highlight, 0 16px 36px rgba(0, 0, 0, 0.35);
 }
-.volume-osd-icon { min-width: 28px; min-height: 28px; padding: 0; border-radius: 8px; background-color: rgba(167, 192, 128, 0.14); }
-.volume-osd-glyph { color: @green; font-size: 18px; }
-.volume-osd-percent { min-width: 32px; color: @fg; font-size: 12px; font-weight: 700; }
-.volume-osd-slider trough { min-width: 118px; min-height: 5px; border-radius: 3px; background-color: alpha(white, 0.22); }
-.volume-osd-slider highlight { background-color: @green; border-radius: 3px; }
-.volume-osd-slider slider { min-width: 10px; min-height: 10px; margin: -3px 0; border-radius: 5px; background-color: @fg; }
-.layout-osd-item { min-height: 28px; border-radius: 8px; color: @muted; font-size: 12px; font-weight: 700; background-color: alpha(white, 0.08); }
+.volume-osd-icon { min-width: 28px; min-height: 28px; padding: 0; border-radius: 999px; background-color: transparent; }
+.volume-osd-glyph { color: @fg; font-size: 18px; }
+.volume-osd-percent { min-width: 34px; color: @fg; font-size: 12px; font-weight: 600; }
+.volume-osd-slider trough { min-width: 118px; min-height: 6px; border-radius: 3px; background-color: alpha(white, 0.18); }
+.volume-osd-slider highlight { background-color: @fg; border-radius: 3px; }
+.volume-osd-slider slider { min-width: 14px; min-height: 14px; margin: -4px 0; border-radius: 7px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
+.layout-osd-item { min-height: 28px; border-radius: 8px; color: @muted; font-size: 12px; font-weight: 600; background-color: alpha(white, 0.08); }
 .layout-osd-caps { color: alpha(white, 0.22); font-size: 16px; }
-.layout-osd-caps.active { color: @green; }
-.layout-osd-item.active { color: #1E2326; background-color: @green; }
-.volume-osd-icon:hover { background-color: rgba(167, 192, 128, 0.24); }
+.layout-osd-caps.active { color: @info; }
+.layout-osd-item.active { color: white; background-color: @accent_fill; }
+.volume-osd-icon:hover { background-color: alpha(@fg, 0.10); }
 
 .notification-stack { padding: 0; }
 .notification, .notification-center {
   border: 1px solid @border;
-  background-color: @surface_alt;
-  border-radius: 14px;
-  padding: 10px 14px;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 18px;
+  padding: 11px 14px;
   color: @fg;
 }
 .notification { min-width: 352px; }
-.notification.critical { background-color: @notification_critical; }
-.notification-icon { color: @cyan; font-size: 18px; }
-.notification-app, .notification-time { color: @grey2; font-size: 11px; }
-.notification-title { font-weight: 700; }
-.notification-body { color: @grey2; font-size: 12px; }
-.notification-close, .notification-action { color: @grey2; border-radius: 8px; min-width: 24px; min-height: 24px; }
-.notification-action.active { background-color: @cyan; color: @bg; }
+.notification.critical { background-color: @bg_critical; }
+.notification-icon { color: @icon; font-size: 18px; }
+.notification-app { color: @muted; font-size: 11px; font-weight: 500; }
+.notification-time { color: @muted; font-size: 11px; }
+.notification-title { font-weight: 600; }
+.notification-body { color: alpha(@fg, 0.80); font-size: 12px; }
+.notification-close, .notification-action { color: @muted; border-radius: 999px; min-width: 22px; min-height: 22px; }
 .notification-progress trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
-.notification-progress progress { min-height: 4px; border-radius: 2px; background-color: @cyan; }
-.notification-center { padding: 20px 12px 12px; }
+.notification-progress progress { min-height: 4px; border-radius: 2px; background-color: @accent; }
+.notification-center { border-radius: 24px; padding: 20px 12px 12px; }
 .notification-center-head { padding: 0 8px 8px; }
-.notification-center-time { color: @fg; font-size: 30px; font-weight: 300; }
-.notification-center-date { color: @grey2; font-size: 12px; }
+.notification-center-head .notification-action { min-width: 36px; min-height: 36px; color: @fg; }
+.notification-center-head .notification-action * { font-size: 17px; }
+.notification-center-time { color: @fg; font-size: 34px; font-weight: 300; letter-spacing: -0.02em; }
+.notification-center-date { color: @muted; font-size: 12px; font-weight: 500; }
 .notification-center scrolledwindow { background-color: transparent; }
-/* cards share the panel color, so a faint light fill separates them */
-.notification-center .notification { background-color: alpha(white, 0.05); }
-.notification-center .notification.critical { background-color: @notification_critical; }
+/* Cards share the panel color, so a faint light fill separates them; concentric: 24px - 12px padding. */
+.notification-center .notification { background-color: alpha(white, 0.06); box-shadow: none; border-radius: 12px; }
+.notification-center .notification.critical { background-color: @bg_critical; }
 
-/* Shared button surface: faint resting fill so buttons read as clickable, stronger on hover/press. */
+/* Shared buttons are bare: a fill appears on hover, press darkens. */
 .music-close, .music-button, .notification-close, .notification-action, .bar-button {
-  background-color: alpha(@fg, 0.07);
+  background-color: transparent;
   transition: background-color 150ms ease-out, color 150ms ease-out;
 }
 .music-close:hover, .music-button:hover, .notification-close:hover, .notification-action:hover, .bar-button:hover {
-  background-color: alpha(@fg, 0.14);
+  background-color: alpha(@fg, 0.12);
   color: @fg;
 }
 .music-close:active, .music-button:active, .notification-close:active, .notification-action:active, .bar-button:active {
-  background-color: alpha(@fg, 0.2);
+  background-color: alpha(black, 0.25);  /* press darkens */
 }
 .bar-button { border-radius: 6px; padding: 0 6px; margin: 6px 0; }
-.music-main { background-color: alpha(@green, 0.16); color: @green; }
-.music-main:hover { background-color: alpha(@green, 0.26); color: @green; }
-.notification-action.active, .notification-action.active:hover { background-color: @cyan; color: @bg; }
+/* Center header buttons are bare icons: white, dimmed while DND is on (.active). */
+.notification-center-head .notification-action,
+.notification-center-head .notification-action:hover,
+.notification-center-head .notification-action:active { background-color: transparent; color: @fg; }
+.notification-center-head .notification-action.active { color: alpha(@fg, 0.35); }
 
-
-/* Dark text on accent fills doesn't need the glass text shadow. */
-.ws.focused, .ws.urgent, .cal:selected, .notification-action.active,
-.ws.focused *, .ws.urgent *, .notification-action.active * { text-shadow: none; }
-
+/* Launcher: Spotlight-like large search field, selection is a solid accent row. */
 .launcher {
   border: 1px solid @border;
-  background-color: @surface_alt;
-  border-radius: 12px;
-  padding: 4px;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 20px;
+  padding: 6px;
   color: @fg;
 }
-.launcher-search { padding: 8px 12px; }
-.launcher-icon { color: @grey2; font-size: 16px; }
-.launcher-entry { color: @fg; caret-color: @green; font-size: 14px; }
-.launcher-placeholder { color: @grey2; font-size: 14px; }
-.launcher-entry selection { background-color: alpha(@green, 0.35); }
-.launcher-list { padding: 4px 0 2px; border-top: 1px solid @border; }
-.launcher-row { padding: 6px 10px; border-radius: 8px; transition: background-color 120ms ease-out; }
+.launcher-search { padding: 10px 12px; }
+.launcher-icon { color: @muted; font-size: 20px; }
+.launcher-entry { color: @fg; caret-color: @accent; font-size: 20px; font-weight: 300; }
+.launcher-placeholder { color: alpha(@fg, 0.35); font-size: 20px; font-weight: 300; }
+.launcher-entry selection { background-color: alpha(@accent, 0.45); }
+.launcher-list { padding: 6px 0 0; border-top: 1px solid alpha(white, 0.08); }
+.launcher-row { padding: 7px 10px; border-radius: 14px; transition: background-color 120ms ease-out; }
 .launcher-row:hover { background-color: alpha(@fg, 0.06); }
-.launcher-row.selected { background-color: alpha(@green, 0.16); }
-.launcher-row.selected .launcher-name { color: @green; font-weight: 700; }
-.launcher-glyph { min-width: 28px; color: @green; font-size: 20px; }
-.launcher-row.armed { background-color: alpha(@red, 0.18); }
-.launcher-row.armed .launcher-name { color: @red; font-weight: 700; }
+.launcher-row.selected { background-color: @accent_fill; }
+.launcher-row.selected, .launcher-row.selected * { color: white; }
+.launcher-row.selected .launcher-name { font-weight: 600; }
+.launcher-glyph { min-width: 28px; color: @icon; font-size: 20px; }
+.launcher-row.armed { background-color: @critical_fill; }
+.launcher-row.armed, .launcher-row.armed * { color: white; }
+.launcher-row.armed .launcher-name { font-weight: 600; }
 
-.lock { background-color: rgba(10, 12, 14, 0.45); color: @fg; }
-.lock-time { font-size: 96px; font-weight: 700; }
-.lock-date { color: @grey2; font-size: 18px; margin-bottom: 28px; }
-.lock-input { min-width: 320px; padding: 10px 16px; border-radius: 12px; border: 1px solid @border; background-color: @surface; }
-.lock-icon { color: @green; font-size: 16px; }
-.lock-entry { color: @fg; caret-color: @green; font-size: 14px; }
-.lock-entry:disabled { color: @grey2; }
-.lock-input.failed { border-color: @red; }
-.lock-layout { color: @grey2; }
+.lock { background-color: rgba(0, 0, 0, 0.35); color: @fg; }
+.lock-time { font-size: 104px; font-weight: 600; letter-spacing: -0.03em; }
+.lock-date { color: alpha(@fg, 0.75); font-size: 20px; font-weight: 500; margin-bottom: 32px; }
+.lock-input { min-width: 300px; padding: 9px 18px; border-radius: 999px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.14); }
+.lock-icon { color: @muted; font-size: 15px; }
+.lock-entry { color: @fg; caret-color: @fg; font-size: 14px; }
+.lock-entry:disabled { color: @muted; }
+.lock-input.failed { border-color: @critical; }
+.lock-layout { color: @muted; font-size: 12px; }
+
+/* Polkit dialog: glass panel, reuses the lock screen's password pill. */
+.auth { border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: @bg_panel; border-radius: 20px; padding: 22px 20px 16px; color: @fg; }
+.auth-icon { color: @icon; font-size: 34px; }
+.auth-title { font-size: 15px; font-weight: 600; }
+.auth-message { color: alpha(@fg, 0.80); font-size: 12px; margin-bottom: 6px; }
+.auth-label { color: @muted; font-size: 11px; font-weight: 500; }
+.auth .lock-input { min-width: 0; }
+.auth-hint { color: @critical; font-size: 12px; }
+.auth-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; margin-top: 6px; transition: background-color 150ms ease-out; }
+.auth-button:hover { background-color: alpha(@fg, 0.16); }
+.auth-button:active { background-color: alpha(black, 0.25); }
+.auth-button.primary { background-color: @accent_fill; color: white; font-weight: 600; }
+.auth-button.primary:hover { background-color: @accent; }

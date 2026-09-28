@@ -1,25 +1,23 @@
 # Fabric-shell design tokens.
 
 [color]
-background = "#1E2326"
-surface = "rgba(16, 20, 23, 0.20)"
-surface_alt = "rgba(16, 20, 23, 0.20)"
-surface_critical = "rgba(90, 36, 38, 0.6)"
-notification = "rgba(16, 20, 23, 0.20)"
-notification_critical = "rgba(90, 36, 38, 0.6)"
-foreground = "#F4F0E8"
-muted = "alpha(#F4F0E8, 0.72)"
-icon = "alpha(#F4F0E8, 0.78)"
-border = "alpha(white, 0.10)"
-accent = "#A7C080"
-critical = "#FF9A9C"
-info = "#83C092"
+bg = "#1C1C1E"
+bg_critical = "alpha(#FF453A, 0.28)"
+foreground = "#F5F5F7"
+muted = "alpha(#F5F5F7, 0.64)"
+icon = "alpha(#F5F5F7, 0.85)"
+border = "alpha(white, 0.12)"
+highlight = "alpha(white, 0.08)"  # inset top edge of glass
+accent = "#0A84FF"
+accent_fill = "#0071E3"  # fills under white text
+critical = "#FF453A"
+critical_fill = "#D93A30"  # fills under white text
+info = "#64D2FF"
 transparent = "transparent"
 
 [opacity]
-surface = 0.94
-popup = 0.97
-overlay = 0.98
+bar = 0.30    # bg_bar = alpha(bg, bar)
+panel = 0.42  # bg_panel = alpha(bg, panel): popups, launcher, OSD, notifications, tooltips
 hover = 0.10
 active = 0.12
 track = 0.30
@@ -27,10 +25,12 @@ track_subtle = 0.25
 shadow = 0.42
 
 [font]
-family = "JetBrainsMono Nerd Font"
+family = "Inter"
+family_mono = "JetBrainsMono Nerd Font"  # bar metrics, so digits do not jump
+family_icon = "Symbols Nerd Font"
 size = "13px"
-weight = 500
-weight_emphasis = 700
+weight = 400
+weight_emphasis = 600
 size_icon = "14px"
 size_caption = "10px"
 size_small = "11px"
@@ -53,13 +53,15 @@ bar_top = "8px"
 
 [radius]
 xs = "2px"
-sm = "5px"
-md = "7px"
+sm = "6px"
+md = "7px"     # workspace buttons, concentric with island
 lg = "8px"
-panel = "12px"
-card = "14px"
-popup = "16px"
-osd = "18px"
+island = "12px"
+card = "12px"  # notification cards inside the center
+popup = "18px"
+launcher = "20px"
+osd = "22px"
+center = "24px"
 pill = "999px"
 
 [size]
@@ -83,13 +85,13 @@ slider_thumb = "10px"
 slider_thumb_large = "12px"
 
 [motion]
-ease = "cubic-bezier(0.22, 1, 0.36, 1)"
+ease = "cubic-bezier(0.32, 0.72, 0, 1)"  # Apple-like decel
 fast = "160ms"
 normal = "220ms"
 osd_timeout = "1500ms"
 
 [shadow]
-osd = "0 16px 36px rgba(23, 28, 31, 0.42)"
+osd = "0 16px 36px rgba(0, 0, 0, 0.35)"
 
 [layer]
 bar = 10
