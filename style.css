@@ -1,7 +1,6 @@
 @import url("styles/tokens.css");
 
 /* Compatibility aliases; canonical values live in design.toml. */
-@define-color bg @surface;
 @define-color fg @fg;
 @define-color grey1 @icon;
 @define-color grey2 @muted;
@@ -174,7 +173,8 @@ tooltip { background-color: @surface_alt; color: @fg; border-radius: 8px; paddin
 
 
 /* Dark text on accent fills doesn't need the glass text shadow. */
-.ws.focused, .ws.urgent, .cal:selected, .notification-action.active { text-shadow: none; }
+.ws.focused, .ws.urgent, .cal:selected, .notification-action.active,
+.ws.focused *, .ws.urgent *, .notification-action.active * { text-shadow: none; }
 
 .launcher {
   border: 1px solid @border;
