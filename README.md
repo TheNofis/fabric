@@ -79,7 +79,16 @@ bindsym $mod+n      exec --no-startup-id $HOME/.config/fabric/toggle-notificatio
 bindsym $mod+Escape exec --no-startup-id $HOME/.config/fabric/lock.sh
 ```
 
-Блюр и анимации picom настраиваются только для окон с классом `Config.py`.
+Блюр и анимации picom настраиваются только для окон с классом `Config.py`. Готовый конфиг лежит в
+[`picom.conf`](picom.conf) (picom v12+, backend `glx`). Подключить его можно ссылкой:
+
+```sh
+ln -sf ~/.config/fabric/picom.conf ~/.config/picom/picom.conf
+pkill picom; picom -b
+```
+
+Окна шелла обрезаны X-shape по форме панелей (`MonitorWindow.clip_to`), поэтому блюр виден только под
+ними. Если блюр пропал после подключения или отключения монитора, перезапустите picom.
 
 ## Устройство
 
