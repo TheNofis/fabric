@@ -55,6 +55,7 @@ class MonitorWindow(X11Window):
             if window is None:
                 return
             region = cairo.Region()
+            laid_out = False
             for panel in parts() if parts else watch:
                 if not panel.get_visible():
                     continue
@@ -62,17 +63,21 @@ class MonitorWindow(X11Window):
                 width, height = panel.get_allocated_width(), panel.get_allocated_height()
                 if width < 2 * radius or height < 2 * radius:
                     continue  # not laid out yet
+                laid_out = True
                 for row in range(height):
                     edge = min(row, height - 1 - row)
                     inset = round(radius - math.sqrt(radius**2 - (radius - edge - 0.5) ** 2)) if edge < radius else 0
                     region.union(cairo.RectangleInt(x + inset, y + row, width - 2 * inset, 1))
+            if not laid_out:
+                return  # an empty shape would make the mapped window invisible; the next allocation reshapes
             window.shape_combine_region(region, 0, 0)
             window.get_display().flush()
             _copy_shape_to_frame(window.get_xid())
 
         for widget in watch:
             widget.connect("size-allocate", reshape)
-        self.connect("map-event", reshape)  # i3 reparents on map; the new frame needs the shape too
+        # i3 reparents on map, so the new frame needs the shape too; idle so the first map sees the allocation
+        self.connect("map-event", lambda *_: GLib.idle_add(lambda: reshape() or False))
 
     def take_focus(self) -> None:
         """Give the window X input focus: override-redirect popups never get it from i3,
