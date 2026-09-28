@@ -72,6 +72,8 @@ class MonitorWindow(X11Window):
                 return  # an empty shape would make the mapped window invisible; the next allocation reshapes
             window.shape_combine_region(region, 0, 0)
             window.get_display().flush()
+            # picom drops damage that races a shape change and keeps stale pixels; repaint once it caught up
+            GLib.timeout_add(50, lambda: self.queue_draw() or False)
             _copy_shape_to_frame(window.get_xid())
 
         for widget in watch:
