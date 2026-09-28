@@ -14,10 +14,10 @@ from services.system import KeyboardState
 from services.state import JsonState
 from shared.constants import CONTENT_GAP
 from shared.widgets import flag, text, toggle_mute, volume_icon, volume_text
-from shared.window import MonitorWindow
+from shared.window import OverlayWindow
 
 
-class VolumeOSD(MonitorWindow):
+class VolumeOSD(OverlayWindow):
     def __init__(self, monitor: Monitor, audio: JsonState, keyboard: KeyboardState):
         self.icon = Button(
             label="󰕾",
@@ -48,12 +48,9 @@ class VolumeOSD(MonitorWindow):
         super().__init__(
             monitor,
             title="fabric-volume-osd",
-            type_hint="notification",
             geometry="bottom",
             margin=f"0px 0px {CONTENT_GAP}px 0px",
-            focusable=False,
             size=(230, 58),
-            visible=False,
             child=body,
         )
         self.clip_to(18, body)

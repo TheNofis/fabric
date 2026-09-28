@@ -90,6 +90,17 @@ class MonitorWindow(X11Window):
         return display, rectangle, 1
 
 
+class OverlayWindow(MonitorWindow):
+    """Transient window that shows without taking focus (OSD, notification popups).
+
+    Override-redirect, so i3 doesn't manage it: a managed window gets focused on map,
+    which moves focus to its monitor and warps the pointer there.
+    """
+
+    def __init__(self, monitor: Monitor, **kwargs: Any):
+        super().__init__(monitor, **{"type": "popup", "type_hint": "notification", "focusable": False, "visible": False, **kwargs})
+
+
 class PopupWindow(MonitorWindow):
     """Hidden-by-default dialog that opens/closes with toggle().
 

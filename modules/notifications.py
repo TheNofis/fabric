@@ -18,7 +18,7 @@ from services.monitors import Monitor
 from services.system import ClockState
 from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP
 from shared.widgets import css, flag, slide, text
-from shared.window import MonitorWindow, PopupWindow
+from shared.window import OverlayWindow, PopupWindow
 
 
 @dataclass
@@ -134,15 +134,12 @@ class NotificationHub:
                 ),
             ],
         )
-        self.popup_window = MonitorWindow(
+        self.popup_window = OverlayWindow(
             monitor,
             title="fabric-notification-popups",
-            type_hint="notification",
             geometry="top-right",
             margin=f"{POPUP_TOP}px {-CONTENT_GAP}px 0px 0px",
-            focusable=False,
             size=(380, -1),
-            visible=False,
             child=self.popups,
         )
         self.center_window = PopupWindow(

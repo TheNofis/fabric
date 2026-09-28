@@ -83,6 +83,7 @@ Notification manager перенесён на Fabric на уровне UI и life
 | `JsonState(State)` | скрипт → JSON-строки, respawn, `stop_all()` | путь к скрипту и default |
 | `MonitorWindow` | окно на конкретном мониторе | содержимое |
 | `PopupWindow(MonitorWindow)` | popup/dialog, скрыт по умолчанию, `toggle()` | geometry, margin, child |
+| `OverlayWindow(MonitorWindow)` | всплывает без фокуса (OSD, попапы уведомлений), вне управления i3 | geometry, margin, child |
 
 Новый источник данных с опросом:
 
@@ -93,6 +94,9 @@ class BatteryState(PollingState):
     def read(self) -> dict:
         return {"percent": int(Path("/sys/class/power_supply/BAT0/capacity").read_text())}
 ```
+
+Окна, которые появляются сами (не по клику), — только `OverlayWindow`: окно под
+управлением i3 при показе получает фокус, и i3 переносит курсор на его монитор.
 
 Новый popup — `class FooWindow(PopupWindow)` с `geometry`/`margin`/`child`;
 дочерние виджеты, чью видимость меняет state, помечаются `set_no_show_all(True)`.
