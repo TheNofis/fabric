@@ -181,6 +181,18 @@ tooltip {
   background-color: alpha(black, 0.25);  /* press darkens */
 }
 .bar-button { border-radius: 6px; padding: 0 6px; margin: 6px 0; }
+.tray-item { padding: 0 5px; }
+
+/* Tray menus (dbusmenu): a solid panel, picom rounds the window (non-RGBA, so no glass);
+   the hovered row is an accent fill, like the launcher's selected row. */
+menu { background-color: #232325; border: 1px solid @border; border-radius: 10px; padding: 5px; color: @fg; }
+menuitem { min-height: 22px; padding: 0 10px; border-radius: 6px; }
+menuitem:hover { background-color: @accent_fill; color: white; }
+menuitem:disabled { color: alpha(@fg, 0.35); }
+menu separator { min-height: 1px; margin: 5px 10px; background-color: alpha(white, 0.10); }
+menuitem check, menuitem radio { min-width: 14px; min-height: 14px; margin-right: 6px; }
+menuitem check:checked, menuitem radio:checked { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
+menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icontheme("pan-end-symbolic"); }
 /* Center header buttons are bare icons: white, dimmed while DND is on (.active). */
 .notification-center-head .notification-action,
 .notification-center-head .notification-action:hover,

@@ -13,6 +13,7 @@ accent_fill = "#0071E3"  # fills under white text
 critical = "#FF453A"
 critical_fill = "#D93A30"  # fills under white text
 info = "#64D2FF"
+menu = "#232325"  # tray menus: opaque, a non-RGBA window cannot be glass
 transparent = "transparent"
 
 [opacity]
@@ -56,6 +57,7 @@ xs = "2px"
 sm = "6px"
 md = "7px"     # workspace buttons, concentric with island
 lg = "8px"
+menu = "10px"  # tray menus; picom rounds the window to match
 island = "12px"
 card = "12px"  # notification cards inside the center
 popup = "18px"

@@ -8,7 +8,9 @@ from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.centerbox import CenterBox
 from fabric.widgets.eventbox import EventBox
+from fabric.widgets.image import Image
 from fabric.widgets.scale import Scale
+from fabric.system_tray.widgets import get_tray_watcher
 from gi.repository import Gdk, GLib, Gtk
 
 from modules.calendar import CalendarWindow
@@ -59,6 +61,75 @@ class WorkspacesView(EventBox):
     def on_scroll(_widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
         command = "prev_on_output" if scroll_up(event) else "next_on_output"
         run("i3-msg", "-q", "workspace", command)
+        return True
+
+class Tray(Box):
+    """StatusNotifierItem tray on Fabric's watcher. Passive items stay hidden (the spec allows it),
+    an empty tray takes no room. Menus drop from the icon, like macOS menu extras."""
+
+    def __init__(self):
+        super().__init__(spacing=2, style_classes=("tray",))
+        self.set_no_show_all(True)  # the bar's show_all() must not reveal passive items
+        self.buttons: dict[str, Button] = {}
+        self.watcher = get_tray_watcher()
+        self.watcher.connect("item-added", lambda _watcher, key: self.add_item(key))
+        self.watcher.connect("item-removed", lambda _watcher, key: self.remove_item(key))
+        for key in list(self.watcher.items):
+            self.add_item(key)
+
+    def add_item(self, key: str) -> None:
+        item = self.watcher.items.get(key)
+        if item is None or key in self.buttons:
+            return
+        image = Image()
+        image.show()
+        button = Button(child=image, style_classes=("bar-button", "tray-item"))
+        button.add_events(Gdk.EventMask.SCROLL_MASK)
+        button.connect("button-press-event", lambda widget, event: self.on_press(widget, item, event))
+        button.connect("scroll-event", lambda _widget, event: item.scroll_for_event(event) or True)
+
+        def update(*_: Any) -> None:
+            try:
+                pixbuf = item.get_preferred_icon_pixbuf(16, "hyper")
+            except GLib.Error:
+                pixbuf = None
+            if pixbuf is None:
+                image.set_from_icon_name("application-x-executable", Gtk.IconSize.MENU)
+            else:
+                image.set_from_pixbuf(pixbuf)
+            button.set_tooltip_text(item.tooltip.title or item.title or None)
+            button.set_visible(item.status != "Passive")
+            self.set_visible(any(other.get_visible() for other in self.buttons.values()))
+
+        self.buttons[key] = button
+        self.add(button)
+        item.changed.connect(update)
+        update()
+
+    def remove_item(self, key: str) -> None:
+        button = self.buttons.pop(key, None)
+        if button is not None:
+            button.destroy()
+            self.set_visible(any(other.get_visible() for other in self.buttons.values()))
+
+    @staticmethod
+    def on_press(button: Button, item: Any, event: Gdk.EventButton) -> bool:
+        x, y = int(event.x_root), int(event.y_root)
+        try:
+            if event.button == 1 and not item.is_menu:
+                item.activate(x, y)
+                return True
+            if event.button == 2:
+                item.secondary_activate(x, y)
+                return True
+        except GLib.Error:
+            pass  # no Activate method (nm-applet and friends): fall back to the menu
+        menu = item.menu
+        if menu is None:
+            item.context_menu(x, y)
+            return True
+        menu.set_property("rect-anchor-dy", 8)
+        menu.popup_at_widget(button, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, event)
         return True
 
 
@@ -169,6 +240,7 @@ class Bar(MonitorWindow):
             ),
         )
         right = island(
+            Tray(),
             stat("󰌌", layout, caps),
             network_widget,
             volume_widget,
