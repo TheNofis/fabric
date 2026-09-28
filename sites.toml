@@ -1,0 +1,30 @@
+# Sites shown in the launcher next to apps; they open in the browser.
+# Re-read on every launcher open, no shell restart needed.
+#
+# [Name]              # names with spaces need quotes: ["Docker Hub"]
+# url = "https://..."
+# icon = "\U000F059F"   # optional Nerd Font glyph (https://www.nerdfonts.com/cheat-sheet), default: globe
+
+[GitHub]
+url = "https://github.com"
+icon = "\U000F02A4"
+
+[GitVerse]
+url = "https://gitverse.ru"
+icon = "\U000F02A2"
+
+[YouTube]
+url = "https://youtube.com"
+icon = "\U000F05C3"
+
+[Grafana]
+url = "https://grafana.sj24.ru/dashboards"
+icon = "\U000F012A"
+
+[Admin]
+url = "https://admin.sj24.ru/"
+icon = "\U000F0483"
+
+["Docker Hub"]
+url = "https://hub.docker.com"
+icon = "\U000F0868"

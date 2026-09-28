@@ -1,0 +1,191 @@
+#!/usr/bin/env python
+"""Entrypoint: builds the Shell context, registers modules and runs Fabric."""
+from __future__ import annotations
+
+import signal
+import sys
+from typing import Any
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import GLib
+
+from fabric import Application
+
+from modules import bar as bar_module
+from modules import calendar as calendar_module
+from modules import launcher as launcher_module
+from modules import lock as lock_module
+from modules import music as music_module
+from modules import notifications as notifications_module
+from modules import volume_osd as volume_osd_module
+from modules.bar import Bar
+from modules.calendar import CalendarWindow
+from modules.launcher import LauncherWindow
+from services.launcher import as_url, parse_sites, calc, clipboard, commands, emoji, fuzzy, power, rank
+from modules.music import MusicWindow, local_art_path
+from modules.notifications import NotificationHub
+from modules.registry import ModuleRegistry, ModuleSpec
+from modules.volume_osd import VolumeOSD
+from services.monitors import Monitor, parse_monitors, read_monitors
+from services.state import JsonState, State, parse_json
+from services.system import ClockState, KeyboardState, NetworkState, SystemState, default_interface, human_bytes
+from shared.constants import ROOT, SCRIPTS
+from shared.widgets import volume_icon
+
+
+class Shell:
+    def __init__(self):
+        self.monitors = read_monitors()
+        if not self.monitors:
+            raise RuntimeError("No active X11 monitors found")
+        self.clock = ClockState()
+        self.system = SystemState()
+        self.workspaces = JsonState(SCRIPTS / "workspaces.sh", [])
+        self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False, "dev": ""})
+        self.network = NetworkState()
+        self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
+        self.keyboard = KeyboardState()
+        self.registry = ModuleRegistry(
+            (
+                ModuleSpec("calendar", calendar_module.build),
+                ModuleSpec("bar", bar_module.build),
+                ModuleSpec("music", music_module.build),
+                ModuleSpec("volume_osd", volume_osd_module.build),
+                ModuleSpec("notifications", notifications_module.build),
+                ModuleSpec("launcher", launcher_module.build),
+                ModuleSpec("lock", lock_module.build),
+            )
+        )
+        self.calendars: list[CalendarWindow] = []
+        self.bars: list[Bar] = []
+        self.music_window: MusicWindow | None = None
+        self.volume_osd: VolumeOSD | None = None
+        self.notifications: NotificationHub | None = None
+        self.launcher: LauncherWindow | None = None
+        self.lock: lock_module.Lock | None = None
+        self.windows = self.registry.build(self)
+
+
+shell: Shell | None = None
+
+
+@Application.action("toggle-music")
+def toggle_music() -> None:
+    if shell:
+        shell.music_window.toggle()
+
+
+@Application.action("toggle-notifications")
+def toggle_notifications() -> None:
+    if shell:
+        shell.notifications.toggle_center()
+
+
+@Application.action("toggle-launcher")
+def toggle_launcher() -> None:
+    if shell:
+        shell.launcher.toggle()
+
+
+@Application.action("lock")
+def lock() -> None:
+    if shell:
+        shell.lock.lock()
+
+
+@Application.action("show-volume-osd")
+def show_volume_osd() -> None:
+    if shell:
+        shell.volume_osd.open_temporarily()
+
+
+def self_check() -> None:
+    sample = "Monitors: 2\n 0: +*HDMI-1-0 1920/600x1080/332+1920+0 HDMI-1-0\n 1: +eDP-1 1920/344x1080/193+0+0 eDP-1\n"
+    assert parse_monitors(sample) == [
+        Monitor("HDMI-1-0", 1920, 1080, 1920, 0),
+        Monitor("eDP-1", 1920, 1080, 0, 0),
+    ]
+    assert parse_json('{"ok": true}', {}) == {"ok": True}
+    assert parse_json("broken", {"ok": False}) == {"ok": False}
+    assert local_art_path("https://example.com/cover.png") is None
+    routes = (
+        "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\n"
+        "wlan0\t00000000\t0101A8C0\t0003\t0\t0\t600\t00000000\n"
+        "eth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\n"
+        "docker0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF\n"
+    )
+    assert default_interface(routes) == "eth0"
+    assert default_interface(routes.splitlines()[0]) == ""
+    assert [human_bytes(v) for v in (0, 999, 1000, 5 * 1024, 20 * 1024, 3 * 1024**3)] == ["0B", "999B", "1.0K", "5.0K", "20K", "3.0G"]
+    seen: list[Any] = []
+    state = State(1)
+    state.subscribe(seen.append)
+    state.emit(1)
+    state.emit(2)
+    assert seen == [1, 2]
+    assert [volume_icon(v, m) for v, m in ((50, True), (10, False), (50, False), (90, False))] == ["󰖁", "󰕿", "󰖀", "󰕾"]
+    App = type("App", (), {})
+    apps = [App(), App(), App()]
+    for app, (name, generic, exe) in zip(apps, (("Firefox", "Web Browser", "firefox"), ("Kitty", "Terminal", "kitty"), ("Nautilus", "Files", "nautilus"))):
+        app.display_name, app.name, app.generic_name, app.executable = name, name, generic, exe
+    assert rank("", apps) == []
+    assert rank("fi", apps) == [apps[0], apps[2]]  # name prefix before generic-name match
+    assert rank("TERM", apps) == [apps[1]]
+    assert [calc(q) for q in ("2+2*3", "2^10", "10/4", "sqrt(16)", "-3", "(1+2)*pi")] == ["8", "1024", "2.5", "4", "-3", "9.42477796077"]
+    assert [calc(q) for q in ("42", "pi", "firefox", "9**9**9", "1/0", "sqrt(-1)", "__import__('os')", "(-8)**0.5")] == [None] * 8
+    assert rank("fi", apps, {"Nautilus": 5}) == [apps[0], apps[2]]  # prefix beats usage
+    apps[1].display_name = apps[1].name = "Files Kitty"
+    assert rank("fi", apps, {"Files Kitty": 3}) == [apps[1], apps[0], apps[2]]  # usage breaks prefix ties
+    assert [i.label for i in power("lo")] == ["Lock", "Logout"] and not power("lo")[0].confirm
+    assert [i.label for i in power("re")] == ["Reboot"] and power("re")[0].confirm and power("r") == []
+    assert [i.label for i in commands(" htop ")] == ["Run in terminal: htop", "Run in background: htop"] and commands(" ") == []
+    assert [i.label for i in clipboard("FO", ["foo\nbar", "baz", ""])] == ["foo bar"]
+    assert clipboard("", ["", "x"])[0].label == "[image]"
+    assert emoji("fire")[0] == ("\U0001F525", "fire") and emoji("") == []
+    assert fuzzy("vsc", "Visual Studio Code") == 0 and fuzzy("loc", "LibreOffice Calc") == 0
+    assert fuzzy("chrmium", "Chromium") == 8 and fuzzy("hello", "Hardware Locality lstopo") is None
+    assert fuzzy("xyz", "Chromium") is None
+    assert fuzzy("tg", "Telegram") < fuzzy("tg", "Godot Engine")  # word start beats a tighter mid-word run
+    vsc, chromium = App(), App()
+    vsc.display_name = vsc.name = "Visual Studio Code"
+    chromium.display_name = chromium.name = "Chromium"
+    for app in (vsc, chromium):
+        app.generic_name, app.executable = None, None
+    assert rank("vsc", [chromium, vsc]) == [vsc]
+    assert rank("chrmium", [chromium, vsc]) == [chromium]
+    telegram, dst = App(), App()
+    telegram.display_name = telegram.name = "Telegram"
+    dst.display_name = dst.name = "Don't Starve Together"
+    for app in (telegram, dst):
+        app.generic_name, app.executable = None, None
+    assert rank("tg", [telegram, dst]) == [dst, telegram] and rank("tg", [telegram, dst], {"Telegram": 1}) == [telegram, dst]
+    assert rank("co", [vsc, chromium]) == [vsc, chromium]  # substring ("code") before fuzzy (c..o)
+    assert [as_url(q) for q in ("https://youtube.com/watch?v=1", "youtube.com", "grafana.sj24.ru/dashboards", "localhost:3000")] == [
+        "https://youtube.com/watch?v=1", "https://youtube.com", "https://grafana.sj24.ru/dashboards", "https://localhost:3000"]
+    assert [as_url(q) for q in ("2.5", "hello world", "chromium", "a.b c")] == [None] * 4
+    sites = parse_sites('[GitHub]\nurl = "https://github.com"\n[Grafana]\nurl = "https://grafana.sj24.ru/dashboards"\nicon = "G"\n[Broken]\nicon = "x"\n')
+    assert [(site.name, site.icon) for site in sites] == [("GitHub", "\U000F059F"), ("Grafana", "G")]
+    assert rank("sj24", sites) == [sites[1]] and rank("gh", sites) == [sites[0]]
+    from services.launcher import SITES_FILE
+    assert len(parse_sites(SITES_FILE.read_text())) == 6
+    print("config self-check: ok")
+
+
+def main() -> None:
+    global shell
+    shell = Shell()
+    app = Application("fabric-shell", *shell.windows)
+    app.set_stylesheet_from_file(str(ROOT / "style.css"), compile=False)
+    for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signum, app.quit)
+    try:
+        app.run()
+    finally:
+        JsonState.stop_all()
+
+
+if __name__ == "__main__":
+    self_check() if "--check" in sys.argv else main()

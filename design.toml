@@ -1,0 +1,105 @@
+# Fabric-shell design tokens.
+
+[color]
+background = "#1E2326"
+surface = "rgba(16, 20, 23, 0.55)"
+surface_alt = "rgba(16, 20, 23, 0.55)"
+surface_critical = "rgba(90, 36, 38, 0.6)"
+notification = "rgba(16, 20, 23, 0.55)"
+notification_critical = "rgba(90, 36, 38, 0.6)"
+foreground = "#F4F0E8"
+muted = "alpha(#F4F0E8, 0.72)"
+icon = "alpha(#F4F0E8, 0.78)"
+border = "alpha(white, 0.10)"
+accent = "#A7C080"
+critical = "#FF9A9C"
+info = "#83C092"
+transparent = "transparent"
+
+[opacity]
+surface = 0.94
+popup = 0.97
+overlay = 0.98
+hover = 0.10
+active = 0.12
+track = 0.30
+track_subtle = 0.25
+shadow = 0.42
+
+[font]
+family = "JetBrainsMono Nerd Font"
+size = "13px"
+weight = 500
+weight_emphasis = 700
+size_icon = "14px"
+size_caption = "10px"
+size_small = "11px"
+size_body = "12px"
+size_title = "14px"
+size_large = "30px"
+
+[spacing]
+micro = "2px"
+xs = "4px"
+sm = "5px"
+md = "8px"
+lg = "10px"
+xl = "12px"
+xxl = "14px"
+panel = "16px"
+popup = "18px"
+section = "20px"
+bar_top = "8px"
+
+[radius]
+xs = "2px"
+sm = "5px"
+md = "7px"
+lg = "8px"
+panel = "12px"
+card = "14px"
+popup = "16px"
+osd = "18px"
+pill = "999px"
+
+[size]
+bar_height = "40px"
+icon_button = "24px"
+button_large = "38px"
+status_icon = "42px"
+notification_width = "352px"
+music_width = "384px"
+osd_width = "344px"
+volume_slider = "88px"
+percent_width = "38px"
+speed_width = "44px"
+time_width = "36px"
+
+[stroke]
+progress = "4px"
+progress_music = "5px"
+slider = "6px"
+slider_thumb = "10px"
+slider_thumb_large = "12px"
+
+[motion]
+ease = "cubic-bezier(0.22, 1, 0.36, 1)"
+fast = "160ms"
+normal = "220ms"
+osd_timeout = "1500ms"
+
+[shadow]
+osd = "0 16px 36px rgba(23, 28, 31, 0.42)"
+
+[layer]
+bar = 10
+popup = 20
+osd = 30
+notification = 40
+
+[state]
+normal = "foreground"
+focused = "accent"
+critical = "critical"
+muted = "critical"
+secondary = "info"

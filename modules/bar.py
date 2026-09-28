@@ -1,0 +1,254 @@
+"""Status bar: system stats, clock, workspaces, keyboard, network, volume."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fabric.widgets.box import Box
+from fabric.widgets.button import Button
+from fabric.widgets.centerbox import CenterBox
+from fabric.widgets.eventbox import EventBox
+from fabric.widgets.scale import Scale
+from gi.repository import Gdk, GLib, Gtk
+
+from modules.calendar import CalendarWindow
+from services.monitors import Monitor
+from services.state import JsonState
+from services.system import ClockState, KeyboardState, NetworkState, SystemState
+from shared.constants import BAR_HEIGHT, SCRIPTS
+from shared.widgets import flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
+from shared.window import MonitorWindow
+
+
+class WorkspacesView(EventBox):
+    def __init__(self, monitor: str, state: JsonState):
+        self.monitor = monitor
+        self.shown: list[dict[str, Any]] | None = None
+        self.row = Box(spacing=2, style_classes=("island", "workspaces"))
+        super().__init__(
+            events="scroll",
+            child=self.row,
+            on_scroll_event=self.on_scroll,
+        )
+        state.subscribe(self.update)
+
+    def update(self, workspaces: list[dict[str, Any]]) -> None:
+        # the stream carries every output; events on another monitor must not rebuild this row
+        mine = [workspace for workspace in workspaces if workspace.get("output") == self.monitor]
+        if mine == self.shown:
+            return
+        self.shown = mine
+        buttons = []
+        for workspace in mine:
+            classes = ["ws"]
+            classes += [name for name in ("focused", "visible", "urgent") if workspace.get(name)]
+            name = str(workspace.get("name", ""))
+            buttons.append(
+                Button(
+                    label=name,
+                    style_classes=classes,
+                    on_clicked=lambda _button, workspace_name=name: run(
+                        "i3-msg", "-q", "workspace", workspace_name
+                    ),
+                )
+            )
+        self.row.children = buttons
+        self.row.show_all()
+
+    @staticmethod
+    def on_scroll(_widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
+        command = "prev_on_output" if scroll_up(event) else "next_on_output"
+        run("i3-msg", "-q", "workspace", command)
+        return True
+
+
+class Bar(MonitorWindow):
+    def __init__(
+        self,
+        monitor: Monitor,
+        clock: ClockState,
+        system: SystemState,
+        workspaces: JsonState,
+        audio: JsonState,
+        network: NetworkState,
+        keyboard: KeyboardState,
+        calendar: CalendarWindow,
+    ):
+        temp = text("0°", "value")
+        temp_stat = stat("󰔏", temp)
+        cpu = text("0%", "value", "w-pct")
+        used = text("0.0G", "value")
+        total = text("", "muted")
+        memory_revealer = slide(total, "right")
+        memory = hover_reveal(stat("󰍛", used, memory_revealer), memory_revealer)
+
+        date = text("", "muted")
+        time = text("", "time")
+        clock_widget = EventBox(
+            events="button-press",
+            child=Box(spacing=8, style_classes=("clock",), children=[date, time]),
+            on_button_press_event=lambda *_: calendar.toggle() or True,
+        )
+
+        device = text("…", "value")
+        device_icon = text("󰓃", "icon")
+        audio_device = EventBox(
+            events="button-press",
+            tooltip_text="Switch audio output",
+            child=Box(spacing=7, style_classes=("stat",), children=[device_icon, device]),
+            on_button_press_event=lambda *_: run(str(SCRIPTS / "switch-audio.sh")) or True,
+        )
+
+        left = island(temp_stat, stat("󰓅", cpu), memory, clock_widget, audio_device)
+
+        layout = text("us", "value")
+        caps = text("caps", "caps")
+
+        net_detail = text("", "muted")
+        net_revealer = slide(net_detail, "left")
+        net_icon = text("󰈂", "icon")
+        down = text("", "value", "w-speed")
+        up = text("", "value", "w-speed")
+        offline = text("offline", "value")
+        speeds = Box(
+            spacing=10,
+            children=[
+                Box(spacing=3, children=[text("↓", "arrow"), down]),
+                Box(spacing=3, children=[text("↑", "arrow"), up]),
+            ],
+        )
+        network_stat = Box(
+            spacing=7,
+            style_classes=("stat",),
+            children=[net_icon, net_revealer, offline, speeds],
+        )
+        network_widget = hover_reveal(network_stat, net_revealer)
+
+        volume_label = text("0%", "value", "w-pct")
+        mute_button = Button(label="󰕾", style_classes=("icon", "bar-button"), tooltip_text="Toggle mute", on_clicked=toggle_mute)
+        volume_scale = Scale(
+            min_value=0,
+            max_value=101,
+            size=(88, -1),
+            style_classes=("vol-slider",),
+        )
+        syncing = {"value": False}
+        pending = {"source": 0}
+
+        # Dragging emits dozens of value-changed per second: apply at most every 50ms,
+        # always with the latest slider position.
+        def apply_volume() -> bool:
+            pending["source"] = 0
+            run("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{min(int(volume_scale.value), 100)}%")
+            return False
+
+        def set_volume(_scale: Scale) -> None:
+            if not syncing["value"] and not pending["source"]:
+                pending["source"] = GLib.timeout_add(50, apply_volume)
+
+        volume_scale.connect("value-changed", set_volume)
+        volume_revealer = slide(volume_scale, "left")
+        volume_stat = Box(
+            spacing=7,
+            style_classes=("stat",),
+            children=[volume_revealer, mute_button, volume_label],
+        )
+
+        def scroll_volume(_widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
+            # same cap as ~/.config/i3/scripts/volume.sh (200%)
+            run("wpctl", "set-volume", "-l", "2", "@DEFAULT_AUDIO_SINK@", "5%+" if scroll_up(event) else "5%-")
+            return True
+
+        volume_widget = hover_reveal(
+            volume_stat,
+            volume_revealer,
+            events=("scroll", "button-press"),
+            on_scroll_event=scroll_volume,
+            on_button_press_event=lambda _widget, event: (
+                run("pavucontrol") or True if event.button == 3 else False
+            ),
+        )
+        right = island(
+            stat("󰌌", layout, caps),
+            network_widget,
+            volume_widget,
+        )
+
+        workspaces_view = WorkspacesView(monitor.name, workspaces)
+        content = CenterBox(
+            name="bar",
+            start_children=left,
+            center_children=workspaces_view,
+            end_children=right,
+        )
+        super().__init__(
+            monitor,
+            title=f"fabric-bar-{monitor.name}",
+            type_hint="dock",
+            geometry="top-left",
+            focusable=False,
+            size=(monitor.width, BAR_HEIGHT),
+            visible=False,
+            child=content,
+        )
+
+        def update_system(value: dict[str, float]) -> None:
+            temp.set_text(f"{value['temp']:.0f}°")
+            flag(temp_stat, "alert", value["temp"] >= 80)
+            cpu.set_text(f"{value['cpu']:.0f}%")
+            used.set_text(f"{value['used'] / 1073741824:.1f}G")
+            total.set_text(f"of {value['total'] / 1073741824:.0f}G")
+
+        def update_audio(value: dict[str, Any]) -> None:
+            muted = bool(value.get("muted"))
+            volume = int(value.get("vol", 0))
+            name = str(value.get("dev", ""))
+            device.set_text(name)
+            device_icon.set_text("󰋋" if name == "G435" else "󰓃")
+            mute_button.set_label(volume_icon(volume, muted))
+            volume_label.set_text(volume_text(volume, muted))
+            flag(volume_stat, "alert", muted)
+            if pending["source"]:
+                return  # user is dragging; don't yank the slider back to a stale value
+            syncing["value"] = True
+            volume_scale.value = volume
+            syncing["value"] = False
+
+        def update_network(value: dict[str, Any]) -> None:
+            interface = str(value.get("iface", ""))
+            net_icon.set_text("󰈂" if not interface else "󰖩" if interface.startswith("w") else "󰈀")
+            net_detail.set_text(f"{value.get('ip', '')}  {interface}  ")
+            offline.set_visible(not interface)
+            speeds.set_visible(bool(interface))
+            down.set_text(str(value.get("down", "")))
+            up.set_text(str(value.get("up", "")))
+            flag(network_stat, "alert", not interface)
+
+        def update_keyboard(value: dict[str, Any]) -> None:
+            layout.set_text(str(value.get("layout", "us")))
+            caps.set_visible(bool(value.get("caps")))
+
+        self.clip_to(12, left, workspaces_view.row, right)
+        self.show_all()
+        clock.subscribe(lambda now: (date.set_text(now.strftime("%a %d %b")), time.set_text(now.strftime("%H:%M"))))
+        system.subscribe(update_system)
+        audio.subscribe(update_audio)
+        network.subscribe(update_network)
+        keyboard.subscribe(update_keyboard)
+
+
+def build(context: Any) -> list[Any]:
+    context.bars = [
+        Bar(
+            monitor,
+            context.clock,
+            context.system,
+            context.workspaces,
+            context.audio,
+            context.network,
+            context.keyboard,
+            calendar,
+        )
+        for monitor, calendar in zip(context.monitors, context.calendars)
+    ]
+    return context.bars

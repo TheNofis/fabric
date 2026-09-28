@@ -1,0 +1,208 @@
+@import url("styles/tokens.css");
+
+/* Compatibility aliases; canonical values live in design.toml. */
+@define-color bg @surface;
+@define-color fg @fg;
+@define-color grey1 @icon;
+@define-color grey2 @muted;
+@define-color green @accent;
+@define-color red @critical;
+@define-color cyan @info;
+
+* {
+  all: unset;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  font-weight: 500;
+}
+
+window { background-color: transparent; }
+tooltip { background-color: @surface_alt; color: @fg; border-radius: 8px; padding: 4px 8px; }
+#bar { padding: 5px 30px 0; }
+
+.island {
+  background-color: @surface;
+  border: 1px solid @border;
+  border-radius: 12px;
+  padding: 0 16px;
+  color: @fg;
+}
+
+.icon { color: @grey1; font-size: 14px; }
+.value { color: @fg; }
+.muted, .arrow { color: @grey2; }
+.time { color: @fg; font-weight: 700; }
+.w-pct { min-width: 38px; }
+.w-speed { min-width: 44px; }
+.alert .icon, .alert .value { color: @red; }
+
+.caps {
+  color: @bg;
+  background-color: @cyan;
+  text-shadow: none;
+  border-radius: 5px;
+  padding: 0 5px;
+  margin: 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workspaces { padding: 0 5px; }
+.ws {
+  min-width: 38px;
+  margin: 5px 0;
+  border-radius: 8px;
+  color: @grey2;
+  transition: background-color 220ms ease-out, color 220ms ease-out;
+}
+.ws { background-color: alpha(@fg, 0.06); margin: 5px 1px; }
+.ws:hover { color: @fg; background-color: alpha(@fg, 0.12); }
+.ws.visible { color: @fg; }
+.ws.focused { color: @bg; background-color: @green; font-weight: 700; }
+.ws.urgent { color: @bg; background-color: @red; }
+
+.vol-slider { margin-right: 4px; }
+.vol-slider trough { min-width: 88px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.22); }
+.vol-slider highlight { background-color: @fg; border-radius: 2px; }
+.vol-slider slider { min-width: 10px; min-height: 10px; margin: -3px 0; border-radius: 5px; background-color: @fg; }
+
+.popup {
+  border: 1px solid @border;
+  background-color: @surface_alt;
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: @fg;
+}
+.popup-title { color: @grey2; }
+.cal { padding: 2px; }
+.cal.header { color: @fg; font-weight: 700; }
+.cal.button { color: @grey2; }
+.cal:selected { color: @bg; background-color: @green; border-radius: 6px; }
+.cal:indeterminate { color: alpha(@fg, 0.35); }
+
+.music-popup {
+  border: 1px solid @border;
+  background-color: @surface_alt;
+  border-radius: 16px;
+  padding: 16px 18px;
+  color: @fg;
+}
+.music-popup-head { min-width: 384px; }
+.music-disc { min-width: 42px; min-height: 42px; border-radius: 12px; background-color: rgba(167, 192, 128, 0.14); }
+.music-disc-icon { color: @green; font-size: 20px; }
+.music-cover { min-width: 42px; min-height: 42px; border-radius: 12px; }
+.music-popup-kicker { color: @grey2; font-size: 10px; letter-spacing: 0.12em; }
+.music-popup-title { color: @fg; font-size: 14px; font-weight: 700; }
+.music-popup-artist { color: @grey2; font-size: 11px; }
+.music-close, .music-button { min-width: 24px; min-height: 24px; border-radius: 7px; color: @fg; }
+.music-close { color: @grey2; }
+
+.music-controls { padding: 2px 0; }
+.music-controls .music-button { min-width: 38px; min-height: 38px; }
+.music-control-icon { font-size: 18px; }
+.music-main.music-control-icon { color: @green; font-size: 20px; }
+.music-track { margin-top: 2px; }
+.music-progress trough { min-width: 384px; min-height: 5px; border-radius: 3px; background-color: alpha(white, 0.22); }
+.music-progress progress { min-height: 5px; border-radius: 3px; background-color: @green; }
+.music-track-times, .music-time { color: @grey2; font-size: 11px; }
+.music-time { min-width: 36px; }
+
+.volume-osd {
+  border: 1px solid @border;
+  background-color: @surface_alt;
+  border-radius: 18px;
+  padding: 10px 12px;
+  color: @fg;
+  box-shadow: 0 16px 36px rgba(23, 28, 31, 0.42);
+}
+.volume-osd-icon { min-width: 28px; min-height: 28px; padding: 0; border-radius: 8px; background-color: rgba(167, 192, 128, 0.14); }
+.volume-osd-glyph { color: @green; font-size: 18px; }
+.volume-osd-percent { min-width: 32px; color: @fg; font-size: 12px; font-weight: 700; }
+.volume-osd-slider trough { min-width: 118px; min-height: 5px; border-radius: 3px; background-color: alpha(white, 0.22); }
+.volume-osd-slider highlight { background-color: @green; border-radius: 3px; }
+.volume-osd-slider slider { min-width: 10px; min-height: 10px; margin: -3px 0; border-radius: 5px; background-color: @fg; }
+.layout-osd-item { min-height: 28px; border-radius: 8px; color: @muted; font-size: 12px; font-weight: 700; background-color: alpha(white, 0.08); }
+.layout-osd-caps { color: alpha(white, 0.22); font-size: 16px; }
+.layout-osd-caps.active { color: @green; }
+.layout-osd-item.active { color: #1E2326; background-color: @green; }
+.volume-osd-icon:hover { background-color: rgba(167, 192, 128, 0.24); }
+
+.notification-stack { padding: 0; }
+.notification, .notification-center {
+  border: 1px solid @border;
+  background-color: @surface_alt;
+  border-radius: 14px;
+  padding: 10px 14px;
+  color: @fg;
+}
+.notification { min-width: 352px; }
+.notification.critical { background-color: @notification_critical; }
+.notification-icon { color: @cyan; font-size: 18px; }
+.notification-app, .notification-time { color: @grey2; font-size: 11px; }
+.notification-title { font-weight: 700; }
+.notification-body { color: @grey2; font-size: 12px; }
+.notification-close, .notification-action { color: @grey2; border-radius: 8px; min-width: 24px; min-height: 24px; }
+.notification-action.active { background-color: @cyan; color: @bg; }
+.notification-progress trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
+.notification-progress progress { min-height: 4px; border-radius: 2px; background-color: @cyan; }
+.notification-center { padding: 20px 12px 12px; }
+.notification-center-head { padding: 0 8px 8px; }
+.notification-center-time { color: @fg; font-size: 30px; font-weight: 300; }
+.notification-center-date { color: @grey2; font-size: 12px; }
+.notification-center scrolledwindow { background-color: transparent; }
+/* cards share the panel color, so a faint light fill separates them */
+.notification-center .notification { background-color: alpha(white, 0.05); }
+.notification-center .notification.critical { background-color: @notification_critical; }
+
+/* Shared button surface: faint resting fill so buttons read as clickable, stronger on hover/press. */
+.music-close, .music-button, .notification-close, .notification-action, .bar-button {
+  background-color: alpha(@fg, 0.07);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.music-close:hover, .music-button:hover, .notification-close:hover, .notification-action:hover, .bar-button:hover {
+  background-color: alpha(@fg, 0.14);
+  color: @fg;
+}
+.music-close:active, .music-button:active, .notification-close:active, .notification-action:active, .bar-button:active {
+  background-color: alpha(@fg, 0.2);
+}
+.bar-button { border-radius: 6px; padding: 0 6px; margin: 6px 0; }
+.music-main { background-color: alpha(@green, 0.16); color: @green; }
+.music-main:hover { background-color: alpha(@green, 0.26); color: @green; }
+.notification-action.active, .notification-action.active:hover { background-color: @cyan; color: @bg; }
+
+
+/* Dark text on accent fills doesn't need the glass text shadow. */
+.ws.focused, .ws.urgent, .cal:selected, .notification-action.active { text-shadow: none; }
+
+.launcher {
+  border: 1px solid @border;
+  background-color: @surface_alt;
+  border-radius: 12px;
+  padding: 4px;
+  color: @fg;
+}
+.launcher-search { padding: 8px 12px; }
+.launcher-icon { color: @grey2; font-size: 16px; }
+.launcher-entry { color: @fg; caret-color: @green; font-size: 14px; }
+.launcher-placeholder { color: @grey2; font-size: 14px; }
+.launcher-entry selection { background-color: alpha(@green, 0.35); }
+.launcher-list { padding: 4px 0 2px; border-top: 1px solid @border; }
+.launcher-row { padding: 6px 10px; border-radius: 8px; transition: background-color 120ms ease-out; }
+.launcher-row:hover { background-color: alpha(@fg, 0.06); }
+.launcher-row.selected { background-color: alpha(@green, 0.16); }
+.launcher-row.selected .launcher-name { color: @green; font-weight: 700; }
+.launcher-glyph { min-width: 28px; color: @green; font-size: 20px; }
+.launcher-row.armed { background-color: alpha(@red, 0.18); }
+.launcher-row.armed .launcher-name { color: @red; font-weight: 700; }
+
+.lock { background-color: rgba(10, 12, 14, 0.45); color: @fg; }
+.lock-time { font-size: 96px; font-weight: 700; }
+.lock-date { color: @grey2; font-size: 18px; margin-bottom: 28px; }
+.lock-input { min-width: 320px; padding: 10px 16px; border-radius: 12px; border: 1px solid @border; background-color: @surface; }
+.lock-icon { color: @green; font-size: 16px; }
+.lock-entry { color: @fg; caret-color: @green; font-size: 14px; }
+.lock-entry:disabled { color: @grey2; }
+.lock-input.failed { border-color: @red; }
+.lock-layout { color: @grey2; }
