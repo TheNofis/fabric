@@ -14,6 +14,7 @@ from fabric.system_tray.widgets import get_tray_watcher
 from gi.repository import Gdk, GLib, Gtk
 
 from modules.calendar import CalendarWindow
+from modules.claude import ClaudeWindow, claude_slot
 from modules.network import NetworkWindow
 from modules.sound import SoundWindow
 from modules.sysmon import SystemMonitorWindow
@@ -151,6 +152,8 @@ class Bar(MonitorWindow):
         sysmon: SystemMonitorWindow,
         sound: SoundWindow,
         network_panel: NetworkWindow,
+        claude_usage: JsonState,
+        claude_panel: ClaudeWindow,
     ):
         temp = text("0°", "value")
         temp_stat = stat("󰔏", temp)
@@ -173,7 +176,7 @@ class Bar(MonitorWindow):
             child=Box(spacing=18, children=[temp_stat, stat("󰓅", cpu), memory]),
             on_button_press_event=lambda widget, *_: sysmon.toggle_at(widget) or True,
         )
-        left = island(stats, clock_widget)
+        left = island(stats, claude_slot(claude_usage, clock, claude_panel), clock_widget)
 
         layout = text("us", "value")
         caps = text("caps", "caps")
@@ -324,9 +327,11 @@ def build(context: Any) -> list[Any]:
             sysmon,
             sound,
             network_panel,
+            context.claude,
+            claude_panel,
         )
-        for monitor, calendar, sysmon, sound, network_panel in zip(
-            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels
+        for monitor, calendar, sysmon, sound, network_panel, claude_panel in zip(
+            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels
         )
     ]
     return context.bars

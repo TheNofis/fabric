@@ -395,3 +395,9 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .auth-check { color: alpha(@fg, 0.80); font-size: 12px; }
 .auth-check check { min-width: 14px; min-height: 14px; margin-right: 6px; border-radius: 4px; border: 1px solid @border; background-color: alpha(white, 0.10); }
 .auth-check check:checked { background-color: @accent_fill; border-color: @accent_fill; }
+
+/* Claude limits: sysmon's layout. The gauge is white like every meter; orange once the API
+   warns, red at the cap. The white tick on the panel gauges is even pace for the window. */
+.claude-gauge { color: alpha(@fg, 0.85); }
+.claude-gauge.warn, .ui-big.warn, .warn .icon, .warn .value { color: @warning; }
+.claude-gauge.alert, .ui-big.alert { color: @critical; }

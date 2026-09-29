@@ -17,6 +17,7 @@ from fabric import Application
 from modules import dayline as dayline_module
 from modules import bar as bar_module
 from modules import calendar as calendar_module
+from modules import claude as claude_module
 from modules import launcher as launcher_module
 from modules import lock as lock_module
 from modules import music as music_module
@@ -59,6 +60,7 @@ class Shell:
                 ModuleSpec("sysmon", sysmon_module.build),
                 ModuleSpec("sound", sound_module.build),
                 ModuleSpec("network", network_module.build),
+                ModuleSpec("claude", claude_module.build),
                 ModuleSpec("bar", bar_module.build),
                 ModuleSpec("music", music_module.build),
                 ModuleSpec("volume_osd", volume_osd_module.build),
@@ -73,6 +75,7 @@ class Shell:
         self.sysmons: list[sysmon_module.SystemMonitorWindow] = []
         self.sounds: list[sound_module.SoundWindow] = []
         self.network_panels: list[network_module.NetworkWindow] = []
+        self.claude_panels: list[claude_module.ClaudeWindow] = []
         self.bars: list[Bar] = []
         self.music_window: MusicWindow | None = None
         self.volume_osd: VolumeOSD | None = None
@@ -216,6 +219,9 @@ def self_check() -> None:
     devices = "wlan0:wifi:connected:Home\n9C\\:92:bt:disconnected:\neth0:ethernet:unavailable:\n"
     assert network_module.links(devices, "ethernet") == [{"device": "eth0", "state": "unavailable", "connection": ""}]
     assert [network_module.signal_icon(s) for s in (10, 40, 70, 95)] == ["󰤟", "󰤢", "󰤥", "󰤨"]
+    assert claude_module.current({"pct": 40, "resets": 1000}, 400) == (40, 600) and claude_module.current({"pct": 40, "resets": 1000}, 1000) == (0, 0)
+    assert [claude_module.duration(s) for s in (1, 2700, 8040, 108000)] == ["1m", "45m", "2h 14m", "1d 6h"]
+    assert [claude_module.level({"severity": s}, p) for s, p in (("normal", 36), ("warning", 80), ("warning", 0), ("normal", 100), ("critical", 95))] == ["", "warn", "", "alert", "alert"]
     print("config self-check: ok")
 
 

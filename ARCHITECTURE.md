@@ -33,6 +33,7 @@ launch.sh
           ├─ calendar.py                календарь на каждом мониторе
           ├─ dayline.py                 Super+C: календарь с заметками и напоминаниями
           ├─ sysmon.py                  панель системного монитора
+          ├─ claude.py                  лимиты Claude: шкала сессии в баре + панель (5ч/неделя, сброс); данные — scripts/claude.py
           ├─ sound.py                   панель звука: выход/вход, громкость, устройство
           ├─ network.py                 панель сети: Wi-Fi (сети, пароль, вкл/выкл) и Ethernet
           ├─ bar.py                     status bar + workspaces
