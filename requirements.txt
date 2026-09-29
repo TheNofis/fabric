@@ -1,1 +1,3 @@
 fabric @ git+https://github.com/Fabric-Development/fabric.git@285439dfcb8cd9ab07b83fb5fa48c34489d6ba03
+pyicloud==2.7.0
+rich  # pyicloud imports it without declaring it

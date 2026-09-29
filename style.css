@@ -90,6 +90,106 @@ tooltip {
 .cal:selected { color: white; background-color: @accent_fill; border-radius: 999px; font-weight: 600; }
 .cal:indeterminate { color: alpha(@fg, 0.30); }
 
+/* Dayline (Super+C): the calendar panel's voice at launcher scale. Accent stays today's disc
+   and the caret; the picked day and the note being edited get a neutral fill. Days with notes
+   carry a dot, past notes dim, nothing is colored for decoration. */
+.dayline {
+  border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 20px;
+  padding: 18px 20px 16px;
+  color: @fg;
+}
+.dayline-cell { min-width: 34px; min-height: 36px; margin: 1px 0; border-radius: 10px; color: @fg; background-color: transparent; transition: background-color 150ms ease-out; }
+.dayline-cell:hover { background-color: alpha(@fg, 0.08); }
+.dayline-cell:active { background-color: alpha(black, 0.25); }
+.dayline-cell.selected { background-color: alpha(@fg, 0.14); }
+.dayline-cell.today { background-color: @accent_fill; color: white; }
+.dayline-cell.today .dayline-num { font-weight: 600; }
+.dayline-cell.outside { color: alpha(@fg, 0.28); }
+.dayline-num { font-size: 12px; margin-top: 5px; }
+.dayline-dot { font-size: 8px; color: transparent; margin-top: -3px; }
+.dayline-cell.busy .dayline-dot { color: @muted; }
+.dayline-cell.today.busy .dayline-dot { color: white; }
+.dayline-next { margin-top: 12px; }
+.dayline-section { color: @muted; font-size: 11px; font-weight: 600; }
+.dayline-day { min-width: 330px; }
+.dayline-day scrolledwindow { background-color: transparent; }
+
+.dayline-note { padding: 7px 8px; border-radius: 10px; background-color: transparent; transition: background-color 150ms ease-out; }
+.dayline-day .dayline-note { margin: 0 -8px; }
+.dayline-next .dayline-note { margin: 0 -8px; padding: 5px 8px; }
+.dayline-note:hover { background-color: alpha(@fg, 0.06); }
+.dayline-note.editing { background-color: alpha(@fg, 0.12); }
+.dayline-when { color: @muted; font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; }
+.dayline-when.time { min-width: 50px; }
+.dayline-text { color: @fg; font-size: 13px; }
+.dayline-next .dayline-text { font-size: 12px; }
+.dayline-note.past .dayline-text, .dayline-note.past .dayline-when { color: alpha(@fg, 0.40); }
+.dayline-delete { color: transparent; min-width: 22px; min-height: 22px; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-note:hover .dayline-delete, .dayline-note.editing .dayline-delete { color: @muted; }
+.dayline-delete:hover { color: @critical; background-color: alpha(@critical, 0.14); }
+.dayline-delete label { font-size: 12px; }
+.dayline-empty { color: @muted; font-size: 12px; padding: 7px 0; }
+
+/* Reminders: the circle completes (accent once done: a state), done notes strike through and fade.
+   Marks trail the note: priority in plain weight, the flag in Apple's orange, repeat muted. */
+.dayline-check { min-width: 20px; min-height: 20px; padding: 0; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.dayline-check label { font-size: 15px; }
+.dayline-check:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.dayline-note.done .dayline-check { color: @accent; }
+.dayline-note.done .dayline-text { text-decoration-line: line-through; color: alpha(@fg, 0.40); }
+.dayline-note.done .dayline-when, .dayline-note.done .dayline-desc { color: alpha(@fg, 0.32); }
+.dayline-desc { color: @muted; font-size: 11px; margin-top: 1px; }
+.dayline-mark-priority { color: @fg; font-size: 12px; font-weight: 700; }
+.dayline-mark-flag { color: @warning; font-size: 12px; }
+.dayline-mark-repeat { color: @muted; font-size: 12px; }
+.dayline-note.done .dayline-mark-priority, .dayline-note.done .dayline-mark-flag { color: alpha(@fg, 0.32); }
+/* "No date": a section heading that is also a target, like a day cell. */
+.dayline-undated { margin: 10px -8px 2px; padding: 4px 8px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-undated label { font-size: 11px; font-weight: 600; }
+.dayline-undated:hover { color: @fg; background-color: alpha(@fg, 0.06); }
+.dayline-undated.selected { color: @fg; background-color: alpha(@fg, 0.14); }
+
+/* List tabs: the day cell's language in a row; the list's own color is only its dot. */
+.dayline-tabs { margin: -4px -6px 0; }
+.dayline-tab { padding: 4px 10px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-tab label { font-size: 12px; font-weight: 500; }
+.dayline-tab:hover { color: @fg; background-color: alpha(@fg, 0.08); }
+.dayline-tab.active { color: @fg; background-color: alpha(@fg, 0.14); }
+.dayline-list-dot { color: @muted; font-size: 8px; }
+
+/* Composer: the lock screen's input pill at panel scale; time is a quiet mono field at the end. */
+.dayline-input { padding: 8px 14px; border-radius: 12px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.08); }
+.dayline-input.invalid { border-color: @critical; }
+.dayline-entry { color: @fg; caret-color: @accent; font-size: 13px; }
+.dayline-entry selection, .dayline-time-entry selection { background-color: alpha(@accent, 0.45); }
+.dayline-placeholder { color: alpha(@fg, 0.40); font-size: 13px; }
+.dayline-time-entry { color: @fg; caret-color: @accent; font-family: "JetBrainsMono Nerd Font"; font-size: 12px; padding-left: 10px; border-left: 1px solid alpha(white, 0.10); }
+.dayline-caption { color: @muted; font-size: 11px; padding: 0 2px; }
+.dayline-time-entry:disabled { color: alpha(@fg, 0.28); }
+.dayline-desc-entry { color: @muted; caret-color: @accent; font-size: 12px; margin-top: 6px; padding-top: 6px; border-top: 1px solid alpha(white, 0.08); }
+.dayline-desc-entry selection { background-color: alpha(@accent, 0.45); }
+/* Priority and list chip: quiet pills inside the composer, full voice once they carry a choice. */
+.dayline-prio, .dayline-chip { min-height: 22px; padding: 0 8px; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-prio label { font-size: 12px; font-weight: 700; }
+.dayline-prio:hover, .dayline-chip:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.dayline-prio.set { color: @fg; }
+.dayline-chip { color: @muted; background-color: alpha(@fg, 0.06); }
+.dayline-chip-title { font-size: 11px; font-weight: 500; }
+.dayline-chip.moved { color: @fg; background-color: alpha(@accent, 0.22); }
+/* Time picker: 24 hours in two rows, quarter hours below; the picked slot is an accent fill,
+   hours already gone today fade but stay clickable. */
+.dayline-picker { padding: 8px; border-radius: 12px; background-color: alpha(white, 0.06); margin-bottom: 2px; }
+.dayline-slot { min-height: 26px; padding: 0 6px; border-radius: 7px; color: @fg; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-slot label { font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; }
+.dayline-slot:hover { background-color: alpha(@fg, 0.10); }
+.dayline-slot.minute { margin-top: 6px; }  /* the minutes row sits apart from the hours */
+.dayline-slot:active { background-color: alpha(black, 0.25); }
+.dayline-slot.past { color: alpha(@fg, 0.35); }
+.dayline-slot.selected { background-color: @accent_fill; color: white; }
+
 .music-popup {
   border: 1px solid @border;
   box-shadow: inset 0 1px @highlight;

@@ -14,3 +14,4 @@
 @define-color critical #FF453A;
 @define-color critical_fill #D93A30;  /* fills under white text: 4.6:1 */
 @define-color info #64D2FF;
+@define-color warning #FF9F0A;  /* Apple orange: flagged reminders */

@@ -18,6 +18,7 @@ launch.sh
       ├─ services/                      источники данных (без GTK-виджетов)
       │   ├─ state.py                   State, PollingState, JsonState, parse_json
       │   ├─ system.py                  ClockState, SystemState, NetworkState, KeyboardState
+      │   ├─ dayline.py                 month_start/grid_days, Notes (→ ~/.local/share/dayline/notes.json), Sync с iCloud Reminders (pyicloud); вход: python -m services.dayline login
       │   ├─ monitors.py                Monitor, xrandr discovery
       │   ├─ launcher.py                источники лаунчера: apps, calc, sites, power, commands, clipboard, emoji
       │   ├─ pam.py                     проверка пароля через libpam (ctypes)
@@ -30,6 +31,7 @@ launch.sh
       └─ modules/                       UI-модули: view + build(context)
           ├─ registry.py                порядок сборки окон
           ├─ calendar.py                календарь на каждом мониторе
+          ├─ dayline.py                 Super+C: календарь с заметками и напоминаниями
           ├─ bar.py                     status bar + workspaces
           ├─ music.py                   music popup
           ├─ volume_osd.py              OSD: громкость и раскладка

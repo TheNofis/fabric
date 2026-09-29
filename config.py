@@ -14,6 +14,7 @@ from gi.repository import GLib
 
 from fabric import Application
 
+from modules import dayline as dayline_module
 from modules import bar as bar_module
 from modules import calendar as calendar_module
 from modules import launcher as launcher_module
@@ -57,6 +58,7 @@ class Shell:
                 ModuleSpec("volume_osd", volume_osd_module.build),
                 ModuleSpec("notifications", notifications_module.build),
                 ModuleSpec("launcher", launcher_module.build),
+                ModuleSpec("dayline", dayline_module.build),
                 ModuleSpec("lock", lock_module.build),
                 ModuleSpec("auth", auth_module.build),
             )
@@ -67,6 +69,7 @@ class Shell:
         self.volume_osd: VolumeOSD | None = None
         self.notifications: NotificationHub | None = None
         self.launcher: LauncherWindow | None = None
+        self.dayline: dayline_module.DaylineWindow | None = None
         self.lock: lock_module.Lock | None = None
         self.windows = self.registry.build(self)
 
@@ -92,6 +95,9 @@ def toggle_launcher() -> None:
         shell.launcher.toggle()
 
 
+@Application.action("toggle-dayline")
+def toggle_dayline() -> None:
+        shell.dayline.toggle()
 @Application.action("lock")
 def lock() -> None:
     if shell:
