@@ -34,6 +34,7 @@ class Item:
     label: str
     action: Callable[[], Any]
     confirm: bool = False  # destructive: first activation only asks
+    detail: str = ""  # second line under the label (an ssh host's target)
 
 
 # --- calculator --------------------------------------------------------------
@@ -161,11 +162,12 @@ def as_url(query: str) -> str | None:
 
 @dataclass
 class Site:
-    """A bookmarked site that ranks and launches like a DesktopApp."""
+    """A bookmarked site (url) or ssh host (ssh) that ranks and launches like a DesktopApp."""
 
     name: str
-    url: str
+    url: str = ""
     icon: str = "\U000F059F"  # nf-md-web
+    ssh: str = ""  # ssh arguments: "root@host" or "user@host -p 2122"
 
     @property
     def display_name(self) -> str:
@@ -173,17 +175,36 @@ class Site:
 
     @property
     def generic_name(self) -> str:
-        return urlparse(self.url).netloc  # "sj24" finds Grafana and Admin
+        # "ssh" lists every host, "sj24" finds Grafana and Admin
+        return f"ssh {self.ssh}" if self.ssh else urlparse(self.url).netloc
+
+    @property
+    def detail(self) -> str:
+        return self.ssh
 
     executable = None
 
     def launch(self) -> None:
-        run(BROWSER, self.url)
+        if self.ssh:
+            # key auth only; the terminal stays on ssh's error if the host is down
+            run(TERMINAL, "-t", f"ssh {self.name}", "-e", "sh", "-c", f'ssh {self.ssh} || read -r _')
+        else:
+            run(BROWSER, self.url)
+
+
+SSH_ICON = "\U000F048B"  # nf-md-server
 
 
 def parse_sites(text: str) -> list[Site]:
-    return [Site(name, str(entry["url"]), str(entry.get("icon") or Site.icon))
-            for name, entry in tomllib.loads(text).items() if isinstance(entry, dict) and entry.get("url")]
+    sites = []
+    for name, entry in tomllib.loads(text).items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("ssh"):
+            sites.append(Site(name, icon=str(entry.get("icon") or SSH_ICON), ssh=str(entry["ssh"])))
+        elif entry.get("url"):
+            sites.append(Site(name, str(entry["url"]), str(entry.get("icon") or Site.icon)))
+    return sites
 
 
 def load_sites() -> list[Site]:
@@ -303,7 +324,8 @@ class Sources:
         items += power(stripped)  # before apps: a typed power keyword is deliberate, and it asks to confirm
         apps = rank(stripped, self.apps, self.usage)
         exact = bool(items) or any(stripped.lower() in _haystack(app) for app in apps)
-        items += [Item(app.icon if isinstance(app, Site) else app_icon(app), app.display_name or app.name, lambda app=app: self.launch(app)) for app in apps]
+        items += [Item(app.icon, app.name, lambda app=app: self.launch(app), detail=app.detail) if isinstance(app, Site)
+                  else Item(app_icon(app), app.display_name or app.name, lambda app=app: self.launch(app)) for app in apps]
         if exact:
             return items
         # only fuzzy guesses (or nothing): the query is probably meant for the web

@@ -89,9 +89,14 @@ class LauncherWindow(PopupWindow):
             name.set_max_width_chars(1)
             name.set_hexpand(True)
             self.labels.append(name)
+            body: Any = name
+            if item.detail:
+                detail = text(item.detail, "launcher-detail", xalign=0)
+                detail.set_ellipsize(Pango.EllipsizeMode.END)
+                body = Box(orientation="v", h_expand=True, children=[name, detail])
             self.list.add(Button(
                 style_classes=("launcher-row",),
-                child=Box(spacing=10, children=[icon, name]),
+                child=Box(spacing=10, children=[icon, body]),
                 on_clicked=lambda *_, i=index: self.launch(i),
             ))
         self.list.show_all()

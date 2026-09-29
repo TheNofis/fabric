@@ -372,6 +372,9 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .launcher-row.selected, .launcher-row.selected * { color: white; }
 .launcher-row.selected .launcher-name { font-weight: 600; }
 .launcher-glyph { min-width: 28px; color: @icon; font-size: 20px; }
+/* SSH hosts: the target reads like the command it runs, a quiet mono line under the name. */
+.launcher-detail { color: @muted; font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; margin-top: 1px; }
+.launcher-row.selected .launcher-detail { color: alpha(white, 0.78); }
 .launcher-row.armed { background-color: @critical_fill; }
 .launcher-row.armed, .launcher-row.armed * { color: white; }
 .launcher-row.armed .launcher-name { font-weight: 600; }

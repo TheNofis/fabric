@@ -193,7 +193,9 @@ def self_check() -> None:
     assert [(site.name, site.icon) for site in sites] == [("GitHub", "\U000F059F"), ("Grafana", "G")]
     assert rank("sj24", sites) == [sites[1]] and rank("gh", sites) == [sites[0]]
     from services.launcher import SITES_FILE
-    assert len(parse_sites(SITES_FILE.read_text())) == 6
+    assert len(parse_sites(SITES_FILE.read_text())) == 8
+    host = parse_sites('[box]\nssh = "u@h -p 22"\n')[0]
+    assert (host.ssh, host.detail, host.generic_name) == ("u@h -p 22", "u@h -p 22", "ssh u@h -p 22") and rank("ssh", [host]) == [host]
     from services.polkit import pick_identity
     root, me, wheel = ("unix-user", {"uid": 0}), ("unix-user", {"uid": 1000}), ("unix-group", {"gid": 998})
     assert pick_identity([root, wheel, me], 1000) == me and pick_identity([wheel, root], 1000) == root and pick_identity([wheel], 1000) == wheel

@@ -28,3 +28,12 @@ icon = "\U000F0483"
 ["Docker Hub"]
 url = "https://hub.docker.com"
 icon = "\U000F0868"
+
+# SSH hosts: `ssh = "..."` instead of url opens a terminal with ssh (key auth, no password).
+# Type the name or "ssh" to list them all; icon is optional too.
+
+[aistudio]
+ssh = "root@2.27.43.163"
+
+[telebot]
+ssh = "telebot@24dv.ddns.me -p 2122"
