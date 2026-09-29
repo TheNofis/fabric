@@ -32,6 +32,9 @@ launch.sh
           ├─ registry.py                порядок сборки окон
           ├─ calendar.py                календарь на каждом мониторе
           ├─ dayline.py                 Super+C: календарь с заметками и напоминаниями
+          ├─ sysmon.py                  панель системного монитора
+          ├─ sound.py                   панель звука: выход/вход, громкость, устройство
+          ├─ network.py                 панель сети: Wi-Fi (сети, пароль, вкл/выкл) и Ethernet
           ├─ bar.py                     status bar + workspaces
           ├─ music.py                   music popup
           ├─ volume_osd.py              OSD: громкость и раскладка

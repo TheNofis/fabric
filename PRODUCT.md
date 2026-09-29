@@ -14,7 +14,7 @@ Quiet, precise, calm. Modern minimalism: the wallpaper stays visible, the bar re
 
 ## Principles
 1. Color means state. Icons and labels are neutral; green = focused workspace, red = overheat or muted, cyan = caps lock. Nothing is colored for decoration.
-2. Values first, details on hover. Always visible: temp, cpu, ram used, date/time, audio device, workspaces, layout, net speeds, volume. On hover: RAM total, IP and interface, volume slider.
+2. Values first, details on hover. Always visible: temp, cpu, ram used, date/time, workspaces, layout, net speeds, volume. On hover: RAM total, IP and interface, volume slider.
 3. Three islands (left, center, right), modules separated by space, not dividers.
 4. Numbers never jitter: tabular/fixed-width values.
 5. Keep the polybar module order and the Everforest palette (colors.ini).

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import fcntl
+import os
 import socket
 import struct
 from datetime import datetime
@@ -22,25 +23,59 @@ class ClockState(PollingState):
         return datetime.now().replace(second=0, microsecond=0)
 
 
+def busy(now: tuple[int, int], before: tuple[int, int]) -> float:
+    """Busy percent between two (total, idle) jiffy samples of a /proc/stat cpu line."""
+    total = now[0] - before[0]
+    return 100 * (total - (now[1] - before[1])) / total if total else 0.0
+
+
+def cpu_model(cpuinfo: str) -> str:
+    """'Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz' -> 'Intel Core i5-7300HQ'."""
+    name = next((line.split(":", 1)[1] for line in cpuinfo.splitlines() if line.startswith("model name")), "")
+    name = name.split("@")[0]
+    for noise in ("(R)", "(TM)", " CPU", " Processor"):
+        name = name.replace(noise, "")
+    return " ".join(name.split())
+
+
 class SystemState(PollingState):
+    """CPU (total and per core), memory, swap, temperatures and root disk; the bar shows a few
+    keys, the system monitor panel all of them."""
+
     def __init__(self):
-        self.previous_cpu: tuple[int, int] | None = None
+        self.previous_cpu: list[tuple[int, int]] | None = None
         self.sensors = self.find_sensors()
-        super().__init__({"cpu": 0.0, "used": 0.0, "total": 0.0, "temp": 0.0})
+        self.disk_sensor = next(self.hwmon_inputs("nvme"), None)
+        self.frequencies = sorted(Path("/sys/devices/system/cpu").glob("cpu[0-9]*/cpufreq/scaling_cur_freq"))
+        super().__init__({"cpu": 0.0, "cores": [], "used": 0.0, "total": 0.0, "swap_used": 0.0, "swap_total": 0.0, "temp": 0.0,
+                          "freq": 0.0, "load": 0.0, "disk_used": 0.0, "disk_total": 0.0, "disk_temp": 0.0})
 
     @staticmethod
-    def cpu() -> tuple[int, int]:
-        values = [int(value) for value in Path("/proc/stat").read_text().splitlines()[0].split()[1:]]
-        return sum(values), values[3] + (values[4] if len(values) > 4 else 0)
+    def cpu() -> list[tuple[int, int]]:
+        """(total, idle) jiffies of the aggregate line, then of every core."""
+        times = []
+        for line in Path("/proc/stat").read_text().splitlines():
+            if not line.startswith("cpu"):
+                break
+            values = [int(value) for value in line.split()[1:]]
+            times.append((sum(values), values[3] + (values[4] if len(values) > 4 else 0)))
+        return times
 
     @staticmethod
-    def memory() -> tuple[float, float]:
-        fields = {
-            key.rstrip(":"): int(value)
+    def memory() -> dict[str, int]:
+        return {
+            key.rstrip(":"): int(value) * 1024
             for key, value, *_ in (line.split() for line in Path("/proc/meminfo").read_text().splitlines())
         }
-        total = fields["MemTotal"] * 1024
-        return total - fields.get("MemAvailable", fields["MemFree"]) * 1024, total
+
+    @staticmethod
+    def hwmon_inputs(name: str):
+        for value_file in sorted(Path("/sys/class/hwmon").glob("hwmon*/temp1_input")):
+            try:
+                if (value_file.parent / "name").read_text().strip() == name:
+                    yield value_file
+            except OSError:
+                pass
 
     @staticmethod
     def find_sensors() -> list[Path]:
@@ -55,25 +90,40 @@ class SystemState(PollingState):
             (preferred if "package" in label else fallback).append(value_file)
         return preferred or fallback
 
+    @staticmethod
+    def read_number(path: Path) -> float | None:
+        try:
+            return float(path.read_text())
+        except (OSError, ValueError):
+            return None
+
     def temperature(self) -> float:
-        values = []
-        for value_file in self.sensors:
-            try:
-                values.append(float(value_file.read_text()) / 1000)
-            except (OSError, ValueError):
-                pass
+        values = [value / 1000 for value in map(self.read_number, self.sensors) if value is not None]
         return max(values, default=0.0)
 
-    def read(self) -> dict[str, float]:
-        current = self.cpu()
-        cpu = 0.0
-        if self.previous_cpu:
-            total = current[0] - self.previous_cpu[0]
-            idle = current[1] - self.previous_cpu[1]
-            cpu = 100 * (total - idle) / total if total else 0.0
-        self.previous_cpu = current
-        used, total_memory = self.memory()
-        return {"cpu": cpu, "used": used, "total": total_memory, "temp": self.temperature()}
+    def read(self) -> dict[str, Any]:
+        times = self.cpu()
+        before = self.previous_cpu if self.previous_cpu and len(self.previous_cpu) == len(times) else times
+        self.previous_cpu = times
+        loads = [busy(now, old) for now, old in zip(times, before)]
+        memory = self.memory()
+        frequencies = [value for value in map(self.read_number, self.frequencies) if value is not None]
+        disk = os.statvfs("/")
+        disk_temp = self.read_number(self.disk_sensor) if self.disk_sensor else None
+        return {
+            "cpu": loads[0],
+            "cores": loads[1:],
+            "used": memory["MemTotal"] - memory.get("MemAvailable", memory["MemFree"]),
+            "total": memory["MemTotal"],
+            "swap_used": memory.get("SwapTotal", 0) - memory.get("SwapFree", 0),
+            "swap_total": memory.get("SwapTotal", 0),
+            "temp": self.temperature(),
+            "freq": sum(frequencies) / len(frequencies) / 1e6 if frequencies else 0.0,  # kHz -> GHz
+            "load": float(Path("/proc/loadavg").read_text().split()[0]),
+            "disk_used": (disk.f_blocks - disk.f_bfree) * disk.f_frsize,
+            "disk_total": disk.f_blocks * disk.f_frsize,
+            "disk_temp": (disk_temp or 0) / 1000,
+        }
 
 
 def human_bytes(value: float) -> str:

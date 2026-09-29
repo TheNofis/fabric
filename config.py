@@ -20,8 +20,11 @@ from modules import calendar as calendar_module
 from modules import launcher as launcher_module
 from modules import lock as lock_module
 from modules import music as music_module
+from modules import network as network_module
 from modules import notifications as notifications_module
 from modules import auth as auth_module
+from modules import sound as sound_module
+from modules import sysmon as sysmon_module
 from modules import volume_osd as volume_osd_module
 from modules.bar import Bar
 from modules.calendar import CalendarWindow
@@ -33,7 +36,7 @@ from modules.registry import ModuleRegistry, ModuleSpec
 from modules.volume_osd import VolumeOSD
 from services.monitors import Monitor, parse_monitors, read_monitors
 from services.state import JsonState, State, parse_json
-from services.system import ClockState, KeyboardState, NetworkState, SystemState, default_interface, human_bytes
+from services.system import ClockState, KeyboardState, NetworkState, SystemState, busy, cpu_model, default_interface, human_bytes
 from shared.constants import ROOT, SCRIPTS
 from shared.widgets import volume_icon
 
@@ -46,13 +49,16 @@ class Shell:
         self.clock = ClockState()
         self.system = SystemState()
         self.workspaces = JsonState(SCRIPTS / "workspaces.sh", [])
-        self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False, "dev": ""})
+        self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False})
         self.network = NetworkState()
         self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
         self.keyboard = KeyboardState()
         self.registry = ModuleRegistry(
             (
                 ModuleSpec("calendar", calendar_module.build),
+                ModuleSpec("sysmon", sysmon_module.build),
+                ModuleSpec("sound", sound_module.build),
+                ModuleSpec("network", network_module.build),
                 ModuleSpec("bar", bar_module.build),
                 ModuleSpec("music", music_module.build),
                 ModuleSpec("volume_osd", volume_osd_module.build),
@@ -64,6 +70,9 @@ class Shell:
             )
         )
         self.calendars: list[CalendarWindow] = []
+        self.sysmons: list[sysmon_module.SystemMonitorWindow] = []
+        self.sounds: list[sound_module.SoundWindow] = []
+        self.network_panels: list[network_module.NetworkWindow] = []
         self.bars: list[Bar] = []
         self.music_window: MusicWindow | None = None
         self.volume_osd: VolumeOSD | None = None
@@ -97,7 +106,10 @@ def toggle_launcher() -> None:
 
 @Application.action("toggle-dayline")
 def toggle_dayline() -> None:
+    if shell:
         shell.dayline.toggle()
+
+
 @Application.action("lock")
 def lock() -> None:
     if shell:
@@ -127,6 +139,9 @@ def self_check() -> None:
     )
     assert default_interface(routes) == "eth0"
     assert default_interface(routes.splitlines()[0]) == ""
+    assert busy((200, 50), (100, 25)) == 75.0 and busy((100, 25), (100, 25)) == 0.0
+    assert cpu_model("processor\t: 0\nmodel name\t: Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz\n") == "Intel Core i5-7300HQ"
+    assert cpu_model("model name\t: AMD Ryzen 7 5800X 8-Core Processor\n") == "AMD Ryzen 7 5800X 8-Core" and cpu_model("") == ""
     assert [human_bytes(v) for v in (0, 999, 1000, 5 * 1024, 20 * 1024, 3 * 1024**3)] == ["0B", "999B", "1.0K", "5.0K", "20K", "3.0G"]
     seen: list[Any] = []
     state = State(1)
@@ -182,6 +197,23 @@ def self_check() -> None:
     from services.polkit import pick_identity
     root, me, wheel = ("unix-user", {"uid": 0}), ("unix-user", {"uid": 1000}), ("unix-group", {"gid": 998})
     assert pick_identity([root, wheel, me], 1000) == me and pick_identity([wheel, root], 1000) == root and pick_identity([wheel], 1000) == wheel
+    sinks = [
+        {"name": "hs", "description": "G435 Wireless Gaming Headset Digital Stereo (IEC958)", "mute": False,
+         "volume": {"front-left": {"value_percent": "83%"}, "front-right": {"value_percent": "80%"}}, "properties": {"device.form_factor": "headset"}},
+        {"name": "hs.monitor", "description": "Monitor of G435", "mute": False, "volume": {}, "properties": {"device.class": "monitor"}},
+        {"name": "pci", "description": "Built-in Audio Analog Stereo", "mute": True, "volume": {"mono": {"value_percent": "5%"}}},
+    ]
+    assert sound_module.devices(sinks, "pci") == [
+        {"name": "hs", "label": "G435 Wireless Gaming Headset", "kind": "headset", "volume": 83, "muted": False, "default": False},
+        {"name": "pci", "label": "Built-in Audio", "kind": "", "volume": 5, "muted": True, "default": True},
+    ]
+    wifi = "*:79:WPA1 WPA2:Home\n :34:WPA2:Home\n :90:--:Cafe\\: Free\n :50::\n :20:WPA2:Work\n :60:WPA2:Home 5G\n"
+    assert [(n["ssid"], n["signal"], n["secure"], n["active"], n["known"]) for n in network_module.networks(wifi, {"Home", "Work"})] == [
+        ("Home", 79, True, True, True), ("Work", 20, True, False, True), ("Cafe: Free", 90, False, False, False), ("Home 5G", 60, True, False, False)]
+    assert network_module.saved("a1:Home\nb2:Cafe: Free\nc3:Home\nd4:\n") == {"Home": ["a1", "c3"], "Cafe: Free": ["b2"]}
+    devices = "wlan0:wifi:connected:Home\n9C\\:92:bt:disconnected:\neth0:ethernet:unavailable:\n"
+    assert network_module.links(devices, "ethernet") == [{"device": "eth0", "state": "unavailable", "connection": ""}]
+    assert [network_module.signal_icon(s) for s in (10, 40, 70, 95)] == ["󰤟", "󰤢", "󰤥", "󰤨"]
     print("config self-check: ok")
 
 

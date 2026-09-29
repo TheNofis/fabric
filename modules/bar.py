@@ -14,10 +14,14 @@ from fabric.system_tray.widgets import get_tray_watcher
 from gi.repository import Gdk, GLib, Gtk
 
 from modules.calendar import CalendarWindow
+from modules.network import NetworkWindow
+from modules.sound import SoundWindow
+from modules.sysmon import SystemMonitorWindow
 from services.monitors import Monitor
 from services.state import JsonState
 from services.system import ClockState, KeyboardState, NetworkState, SystemState
-from shared.constants import BAR_HEIGHT, SCRIPTS
+from shared.constants import BAR_HEIGHT
+from shared.ui import slider
 from shared.widgets import flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
 from shared.window import MonitorWindow
 
@@ -144,6 +148,9 @@ class Bar(MonitorWindow):
         network: NetworkState,
         keyboard: KeyboardState,
         calendar: CalendarWindow,
+        sysmon: SystemMonitorWindow,
+        sound: SoundWindow,
+        network_panel: NetworkWindow,
     ):
         temp = text("0°", "value")
         temp_stat = stat("󰔏", temp)
@@ -158,19 +165,15 @@ class Bar(MonitorWindow):
         clock_widget = EventBox(
             events="button-press",
             child=Box(spacing=8, style_classes=("clock",), children=[date, time]),
-            on_button_press_event=lambda *_: calendar.toggle() or True,
+            on_button_press_event=lambda widget, *_: calendar.toggle_at(widget) or True,
         )
 
-        device = text("…", "value")
-        device_icon = text("󰓃", "icon")
-        audio_device = EventBox(
+        stats = EventBox(
             events="button-press",
-            tooltip_text="Switch audio output",
-            child=Box(spacing=7, style_classes=("stat",), children=[device_icon, device]),
-            on_button_press_event=lambda *_: run(str(SCRIPTS / "switch-audio.sh")) or True,
+            child=Box(spacing=18, children=[temp_stat, stat("󰓅", cpu), memory]),
+            on_button_press_event=lambda widget, *_: sysmon.toggle_at(widget) or True,
         )
-
-        left = island(temp_stat, stat("󰓅", cpu), memory, clock_widget, audio_device)
+        left = island(stats, clock_widget)
 
         layout = text("us", "value")
         caps = text("caps", "caps")
@@ -193,16 +196,16 @@ class Bar(MonitorWindow):
             style_classes=("stat",),
             children=[net_icon, net_revealer, offline, speeds],
         )
-        network_widget = hover_reveal(network_stat, net_revealer)
+        network_widget = hover_reveal(
+            network_stat,
+            net_revealer,
+            events=("button-press",),
+            on_button_press_event=lambda _widget, event: network_panel.toggle_at(network_stat) or True if event.button == 1 else False,
+        )
 
         volume_label = text("0%", "value", "w-pct")
         mute_button = Button(label="󰕾", style_classes=("icon", "bar-button"), tooltip_text="Toggle mute", on_clicked=toggle_mute)
-        volume_scale = Scale(
-            min_value=0,
-            max_value=101,
-            size=(88, -1),
-            style_classes=("vol-slider",),
-        )
+        volume_scale = slider("vol-slider", max_value=101, size=(88, -1))
         syncing = {"value": False}
         pending = {"source": 0}
 
@@ -236,7 +239,8 @@ class Bar(MonitorWindow):
             events=("scroll", "button-press"),
             on_scroll_event=scroll_volume,
             on_button_press_event=lambda _widget, event: (
-                run("pavucontrol") or True if event.button == 3 else False
+                sound.toggle_at(volume_stat) or True if event.button == 1
+                else run("pavucontrol") or True if event.button == 3 else False
             ),
         )
         right = island(
@@ -274,9 +278,6 @@ class Bar(MonitorWindow):
         def update_audio(value: dict[str, Any]) -> None:
             muted = bool(value.get("muted"))
             volume = int(value.get("vol", 0))
-            name = str(value.get("dev", ""))
-            device.set_text(name)
-            device_icon.set_text("󰋋" if name == "G435" else "󰓃")
             mute_button.set_label(volume_icon(volume, muted))
             volume_label.set_text(volume_text(volume, muted))
             flag(volume_stat, "alert", muted)
@@ -320,7 +321,12 @@ def build(context: Any) -> list[Any]:
             context.network,
             context.keyboard,
             calendar,
+            sysmon,
+            sound,
+            network_panel,
         )
-        for monitor, calendar in zip(context.monitors, context.calendars)
+        for monitor, calendar, sysmon, sound, network_panel in zip(
+            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels
+        )
     ]
     return context.bars

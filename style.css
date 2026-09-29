@@ -84,11 +84,20 @@ tooltip {
   color: @fg;
 }
 .popup-title { color: @muted; }
-.cal { padding: 2px; }
-.cal.header { color: @fg; font-weight: 600; }
-.cal.button { color: @muted; }
-.cal:selected { color: white; background-color: @accent_fill; border-radius: 999px; font-weight: 600; }
-.cal:indeterminate { color: alpha(@fg, 0.30); }
+
+/* Calendar: today is a light numeral beside its weekday (notification center voice), the month
+   below is a quiet grid; the only fill is today's accent disc. */
+.cal { padding: 16px 16px 14px; }
+.cal-day { color: @fg; font-size: 44px; font-weight: 300; letter-spacing: -0.03em; min-width: 52px; }
+.cal-weekday { color: @fg; font-size: 15px; font-weight: 600; }
+.cal-date { color: @muted; font-size: 12px; font-weight: 500; }
+.cal-title { color: @fg; font-size: 13px; font-weight: 600; }
+.cal-back { margin-left: -6px; }
+.cal-back.away:hover { background-color: alpha(@fg, 0.12); color: @fg; }
+.cal-head { color: @muted; font-size: 10px; font-weight: 600; min-height: 22px; }
+.cal-cell { color: @fg; font-size: 12px; min-width: 30px; min-height: 30px; margin: 1px 0; border-radius: 999px; }
+.cal-cell.outside { color: alpha(@fg, 0.28); }
+.cal-cell.today { color: white; background-color: @accent_fill; font-weight: 600; }
 
 /* Dayline (Super+C): the calendar panel's voice at launcher scale. Accent stays today's disc
    and the caret; the picked day and the note being edited get a neutral fill. Days with notes
@@ -189,6 +198,48 @@ tooltip {
 .dayline-slot:active { background-color: alpha(black, 0.25); }
 .dayline-slot.past { color: alpha(@fg, 0.35); }
 .dayline-slot.selected { background-color: @accent_fill; color: white; }
+
+/* System monitor: sections split by space, not rules; big light numerals like the notification center.
+   Meters are white like every progress in the shell; red only when a value is in trouble. */
+.sysmon-meta { margin-bottom: 5px; }
+.sysmon-value { color: @fg; font-size: 12px; }
+.sysmon-label { color: @muted; font-size: 11px; }
+.sysmon-value.alert { color: @critical; font-weight: 600; }
+.sysmon-row { margin-top: 4px; }
+.sysmon-row .sysmon-value { font-size: 11px; }
+.sysmon-graph { color: alpha(@fg, 0.85); margin: 4px 0 2px; }
+
+/* Sound panel: sysmon's layout; the slider is a sysmon meter with a knob, the default device
+   carries the only fill. Muted dims the numbers, it is not an alarm, so no red. */
+.sound-mute { color: @icon; font-size: 16px; min-width: 30px; min-height: 30px; border-radius: 999px; background-color: alpha(@fg, 0.08); transition: background-color 150ms ease-out; }
+.sound-mute:hover { background-color: alpha(@fg, 0.14); }
+.sound-mute.active { color: @bg; background-color: @fg; }
+.sound-slider { margin: 2px 0 4px; }
+.sound-slider trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
+.sound-slider highlight { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
+.sound-slider slider { min-width: 14px; min-height: 14px; margin: -5px 0; border-radius: 7px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
+.sound-slider.dim highlight { background-color: alpha(@fg, 0.30); }
+.sound-settings { color: @muted; font-size: 12px; padding: 6px 8px; margin: -8px -8px 0; border-radius: 8px; }
+.sound-settings:hover { color: @fg; background-color: alpha(@fg, 0.06); }
+
+/* Network panel: sound's rows; the connected network carries the fill and the accent check.
+   Signal and lock glyphs stay neutral: strength is shape, not color. The switch is the only
+   accent fill, and only while Wi-Fi is on. */
+.net-signal { font-size: 16px; }
+.net-signal.weak { color: alpha(@fg, 0.40); }
+.net-lock { color: @muted; font-size: 12px; }
+.net-status { color: @muted; font-size: 11px; }
+.net-hint { color: @muted; font-size: 11px; margin-left: 2px; }
+.net-hint.error { color: @critical; }
+.ui-panel .net-password { min-width: 0; margin: 2px -8px 0; padding: 7px 14px; }
+.net-password .ui-field-entry { font-size: 13px; }
+.net-action { margin-top: 0; padding: 4px 14px; font-size: 12px; }
+.net-options { margin: 2px 0 6px; }
+.net-form { margin: 0 -8px; }
+.net-switch { min-width: 36px; min-height: 20px; border-radius: 999px; background-color: alpha(white, 0.18); transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1); }
+.net-switch:checked { background-color: @accent_fill; }
+.net-switch image { color: transparent; -gtk-icon-source: none; }
+.net-switch slider { min-width: 16px; min-height: 16px; margin: 2px; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.35); }
 
 .music-popup {
   border: 1px solid @border;
