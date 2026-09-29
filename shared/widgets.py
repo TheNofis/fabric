@@ -120,3 +120,4 @@ def stat(icon: str, *children: Gtk.Widget) -> Box:
 
 def island(*children: Gtk.Widget, classes: tuple[str, ...] = ()) -> Box:
     return Box(spacing=18, style_classes=("island", *classes), children=children)
+

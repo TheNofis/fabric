@@ -6,13 +6,13 @@ from typing import Any
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
-from fabric.widgets.scale import Scale
 from gi.repository import GLib
 
 from services.monitors import Monitor
 from services.system import KeyboardState
 from services.state import JsonState
 from shared.constants import CONTENT_GAP
+from shared.ui import slider
 from shared.widgets import flag, text, toggle_mute, volume_icon, volume_text
 from shared.window import OverlayWindow
 
@@ -25,7 +25,7 @@ class VolumeOSD(OverlayWindow):
             on_clicked=toggle_mute,
         )
         self.percent = text("0%", "volume-osd-percent")
-        self.scale = Scale(min_value=0, max_value=101, h_expand=True, style_classes=("volume-osd-slider",))
+        self.scale = slider("volume-osd-slider", max_value=101)
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
         self.caps = text("󰪛", "volume-osd-percent", "layout-osd-caps")

@@ -13,6 +13,7 @@ from fabric.widgets.x11 import X11Window
 from gi.repository import Gdk, GLib, Gtk
 
 from services.monitors import Monitor
+from shared.constants import CONTENT_GAP, POPUP_TOP
 
 _xlib = ctypes.CDLL(ctypes.util.find_library("X11"))
 _xext = ctypes.CDLL(ctypes.util.find_library("Xext"))
@@ -118,7 +119,12 @@ class PopupWindow(MonitorWindow):
     the popup (and outside other shell windows) hides it; the click is swallowed.
     While open, i3 keybindings don't fire (the keyboard is grabbed), so hotkey
     names the key of the i3 Super+<key> binding that opens it; it closes the popup too.
+
+    Dismissible popups stack: one opening over another (a polkit prompt over the network
+    panel) takes the grab and the one below stays open; closing the top hands the grab back.
     """
+
+    grabbed: list[PopupWindow] = []  # popups holding the grab, the current holder last
 
     def __init__(self, monitor: Monitor, dismissible: bool = False, hotkey: str | None = None, **kwargs: Any):
         super().__init__(monitor, **{"type": "popup", "type_hint": "dialog", "visible": False, **kwargs})
@@ -126,10 +132,11 @@ class PopupWindow(MonitorWindow):
         if dismissible:
             self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK)
             self.connect("map-event", lambda *_: self._grab())
-            self.connect("unmap-event", lambda *_: self._seat().ungrab())
+            self.connect("unmap-event", lambda *_: self._release())
             self.connect("button-press-event", self._on_button_press)
             self.connect("key-press-event", self._on_key_press)
-            self.connect("grab-broken-event", lambda *_: self.hide())
+            # grab_window is set when one of our own windows took the grab: stay open below it
+            self.connect("grab-broken-event", lambda _widget, event: event.grab_window is None and self.hide())
 
     def _seat(self) -> Gdk.Seat:
         return self.get_display().get_default_seat()
@@ -142,9 +149,27 @@ class PopupWindow(MonitorWindow):
         if not self.get_visible() or self.get_window() is None:
             return False
         status = self._seat().grab(self.get_window(), Gdk.SeatCapabilities.ALL, True, None, None, None, None)
-        if status != Gdk.GrabStatus.SUCCESS and attempts > 0:
+        if status == Gdk.GrabStatus.SUCCESS:
+            if self in PopupWindow.grabbed:
+                PopupWindow.grabbed.remove(self)
+            PopupWindow.grabbed.append(self)
+        elif attempts > 0:
             GLib.timeout_add(20, self._grab, attempts - 1)
         return False
+
+    def _release(self) -> None:
+        # ungrab only our own grab: after a popup above took it, ungrabbing would strip that
+        # popup's keyboard (its entry stops taking input)
+        if self not in PopupWindow.grabbed:
+            return
+        holder = PopupWindow.grabbed[-1] is self
+        PopupWindow.grabbed.remove(self)
+        if holder:
+            self._seat().ungrab()
+            if PopupWindow.grabbed:
+                below = PopupWindow.grabbed[-1]
+                below._grab()
+                below.take_focus()
 
     def _on_button_press(self, _widget: Any, event: Gdk.EventButton) -> bool:
         x, y = self.get_window().get_origin()[1:]
@@ -165,3 +190,33 @@ class PopupWindow(MonitorWindow):
 
     def toggle(self) -> None:
         self.hide() if self.get_visible() else self.show_all()
+
+
+class BarPanel(PopupWindow):
+    """Dropdown under a bar slot (calendar, system monitor), like a macOS menu extra.
+
+    toggle_at(slot) aligns the panel's left edge with the slot, kept inside the tiled-window
+    area. One panel is open at a time: opening one closes the rest. Esc or a click outside
+    closes it; clicks on the bar still reach it, so the slot toggles and a sibling slot switches.
+    """
+
+    instances: list[BarPanel] = []
+
+    def __init__(self, monitor: Monitor, name: str, child: Gtk.Widget, radius: int = 18):
+        super().__init__(monitor, dismissible=True, title=f"fabric-{name}-{monitor.name}", geometry="top-left", child=child)
+        BarPanel.instances.append(self)
+        self.clip_to(radius, child)
+
+    def toggle_at(self, slot: Gtk.Widget) -> None:
+        if self.get_visible():
+            self.hide()
+            return
+        for panel in BarPanel.instances:
+            if panel is not self:
+                panel.hide()  # first, so a panel sharing a stream stops it before this one starts it
+        x = slot.translate_coordinates(slot.get_toplevel(), 0, 0)[0]
+        width = self.get_child().get_preferred_width()[1]
+        # 16px = .popup side padding, so the panel's content lines up with the slot's
+        x = min(max(x - 16, CONTENT_GAP), self.monitor.width - width - CONTENT_GAP)
+        self.margin = (POPUP_TOP, x, 0, 0)  # Fabric: x offset = right - left margin
+        self.show_all()

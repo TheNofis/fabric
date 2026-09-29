@@ -1,4 +1,5 @@
 @import url("styles/tokens.css");
+@import url("styles/ui.css");
 
 /* Glass surfaces: blur comes from picom; the tint is in tokens, the hairline border plus
    an inset top highlight give the edge the lift macOS materials have. No text shadows. */
@@ -227,11 +228,6 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .lock { background-color: rgba(0, 0, 0, 0.35); color: @fg; }
 .lock-time { font-size: 104px; font-weight: 600; letter-spacing: -0.03em; }
 .lock-date { color: alpha(@fg, 0.75); font-size: 20px; font-weight: 500; margin-bottom: 32px; }
-.lock-input { min-width: 300px; padding: 9px 18px; border-radius: 999px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.14); }
-.lock-icon { color: @muted; font-size: 15px; }
-.lock-entry { color: @fg; caret-color: @fg; font-size: 14px; }
-.lock-entry:disabled { color: @muted; }
-.lock-input.failed { border-color: @critical; }
 .lock-layout { color: @muted; font-size: 12px; }
 
 /* Polkit dialog: glass panel, reuses the lock screen's password pill. */

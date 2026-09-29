@@ -1,0 +1,51 @@
+/* UI kit (shared/ui): the pieces panels are built from. Imported before style.css's rules,
+   so a module selector with the same specificity (.net-action on a .ui-button) overrides the kit. */
+
+/* panel(): root of a bar dropdown */
+.ui-panel { min-width: 300px; padding: 16px 18px 18px; }
+
+/* header(), big_value(), detail text */
+.ui-kicker { color: @muted; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+.ui-detail { color: @muted; font-size: 11px; }
+.ui-big { color: @fg; font-size: 26px; font-weight: 300; letter-spacing: -0.02em; }
+.ui-big.dim { color: @muted; }
+
+/* row_list() / list_row() / check(): the selected row carries the only fill */
+.ui-rows { margin: 0 -8px; }
+.ui-row { padding: 6px 8px; border-radius: 8px; color: @muted; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.ui-row:hover { color: @fg; background-color: alpha(@fg, 0.06); }
+.ui-row.default { color: @fg; background-color: alpha(@fg, 0.10); }
+.ui-row:disabled { color: alpha(@fg, 0.40); }
+.ui-row-icon { font-size: 14px; min-width: 16px; }
+.ui-row-title { font-size: 12px; }
+.ui-row.default .ui-row-title { font-weight: 500; }
+.ui-check { color: @accent; font-size: 13px; }
+
+/* button(): pill; primary is the accent-filled default action */
+.ui-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; margin-top: 6px; transition: background-color 150ms ease-out; }
+.ui-button:hover { background-color: alpha(@fg, 0.16); }
+.ui-button:active { background-color: alpha(black, 0.25); }
+.ui-button.primary { background-color: @accent_fill; color: white; font-weight: 600; }
+.ui-button.primary:hover { background-color: @accent; }
+
+/* nav_button() */
+.ui-nav { border-radius: 6px; padding: 3px 6px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.ui-nav-arrow { min-width: 16px; }
+.ui-nav-arrow label { font-size: 11px; }
+.ui-nav-arrow:hover { background-color: alpha(@fg, 0.12); color: @fg; }
+.ui-nav:active { background-color: alpha(black, 0.25); }
+
+/* password_field() / password_entry(): the lock screen's pill */
+.ui-field { min-width: 300px; padding: 9px 18px; border-radius: 999px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.14); }
+.ui-field-icon { color: @muted; font-size: 15px; }
+.ui-field-entry { color: @fg; caret-color: @fg; font-size: 14px; }
+.ui-field-entry:disabled { color: @muted; }
+.ui-field.failed { border-color: @critical; }
+
+/* meter(): white like every progress in the shell, red only when in trouble */
+/* GTK3 floors a realized progress bar at the min-horizontal-bar-width style property (150px) */
+.ui-meter { -GtkProgressBar-min-horizontal-bar-width: 0; }
+.ui-meter trough { min-width: 0; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
+.ui-meter progress { min-width: 0; min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
+.ui-meter.thin trough, .ui-meter.thin progress { min-height: 3px; }
+.ui-meter.alert progress { background-color: @critical; }

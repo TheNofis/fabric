@@ -11,6 +11,7 @@ from gi.repository import Gdk, GLib
 
 from services.monitors import Monitor
 from services.pam import authenticate
+from shared.ui import password_entry, password_field
 from shared.widgets import flag, text
 from shared.window import MonitorWindow
 
@@ -21,7 +22,7 @@ class LockWindow(MonitorWindow):
         center = Box(orientation="v", spacing=6, h_expand=True, v_expand=True, h_align="center", v_align="center", children=[time, date])
         if entry is not None:
             layout = text("", "lock-layout")
-            center.add(Box(spacing=10, style_classes=("lock-input",), children=[text("\U000F033E", "lock-icon"), entry, layout]))  # nf-md-lock
+            center.add(password_field(entry, layout))
             context.keyboard.subscribe(lambda v: layout.set_text(str(v.get("layout", "us")) + (" 󰪛" if v.get("caps") else "")))
         super().__init__(
             monitor,
@@ -40,10 +41,7 @@ class Lock:
     """All lock windows; the first one owns the entry and the keyboard/pointer grab."""
 
     def __init__(self, context: Any):
-        self.entry = Entry(h_expand=True, style_classes=("lock-entry",))
-        self.entry.set_visibility(False)  # Fabric's Entry ignores a visibility kwarg
-        self.entry.set_invisible_char("●")
-        self.entry.connect("activate", lambda *_: self._check())
+        self.entry = password_entry(self._check)
         self.windows = [LockWindow(m, context, self.entry if i == 0 else None) for i, m in enumerate(context.monitors)]
         main = self.windows[0]
         main.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)

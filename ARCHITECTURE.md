@@ -143,10 +143,12 @@ services/
   workspaces.py                 i3 workspace service
 shared/
   widgets.py                    text/stat/island и GTK helpers
+  ui/                           UI-кит панелей (список компонентов в __init__.py), стили в styles/ui.css
   window.py                      MonitorWindow и lifecycle
   state.py                       parsing, subscriptions, teardown
 styles/
   tokens.css                    palette, radius, spacing, typography
+  ui.css                        UI-кит: классы .ui-*
   modules/                      module-specific selectors
 tests/
   test_registry.py, test_state.py, test_scripts.py
