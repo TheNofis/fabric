@@ -20,6 +20,7 @@ from modules import launcher as launcher_module
 from modules import lock as lock_module
 from modules import music as music_module
 from modules import notifications as notifications_module
+from modules import auth as auth_module
 from modules import volume_osd as volume_osd_module
 from modules.bar import Bar
 from modules.calendar import CalendarWindow
@@ -57,6 +58,7 @@ class Shell:
                 ModuleSpec("notifications", notifications_module.build),
                 ModuleSpec("launcher", launcher_module.build),
                 ModuleSpec("lock", lock_module.build),
+                ModuleSpec("auth", auth_module.build),
             )
         )
         self.calendars: list[CalendarWindow] = []
@@ -171,6 +173,9 @@ def self_check() -> None:
     assert rank("sj24", sites) == [sites[1]] and rank("gh", sites) == [sites[0]]
     from services.launcher import SITES_FILE
     assert len(parse_sites(SITES_FILE.read_text())) == 6
+    from services.polkit import pick_identity
+    root, me, wheel = ("unix-user", {"uid": 0}), ("unix-user", {"uid": 1000}), ("unix-group", {"gid": 998})
+    assert pick_identity([root, wheel, me], 1000) == me and pick_identity([wheel, root], 1000) == root and pick_identity([wheel], 1000) == wheel
     print("config self-check: ok")
 
 

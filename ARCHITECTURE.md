@@ -20,7 +20,9 @@ launch.sh
       │   ├─ system.py                  ClockState, SystemState, NetworkState, KeyboardState
       │   ├─ monitors.py                Monitor, xrandr discovery
       │   ├─ launcher.py                источники лаунчера: apps, calc, sites, power, commands, clipboard, emoji
-      │   └─ pam.py                     проверка пароля через libpam (ctypes)
+      │   ├─ pam.py                     проверка пароля через libpam (ctypes)
+      │   ├─ polkit.py                  polkit authentication agent (D-Bus + PolkitAgent.Session)
+      │   └─ keyring.py                 gnome-keyring system prompter (D-Bus + Gcr.SecretExchange)
       ├─ shared/                        переиспользуемые UI-кирпичи
       │   ├─ constants.py               пути и layout-метрики (gaps, bar height)
       │   ├─ widgets.py                 text/stat/island, hover_reveal/slide, run, audio helpers
@@ -33,7 +35,8 @@ launch.sh
           ├─ volume_osd.py              OSD: громкость и раскладка
           ├─ notifications.py           popup + notification center
           ├─ launcher.py                лаунчер (замена rofi)
-          └─ lock.py                    экран блокировки
+          ├─ lock.py                    экран блокировки
+          └─ auth.py                    окно пароля для polkit и gnome-keyring
 
 scripts/                                 i3 / PipeWire / MPRIS → JSON-строки
 style.css, design.toml, styles/tokens.css визуальная система

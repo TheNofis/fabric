@@ -57,6 +57,11 @@ url = "https://hub.docker.com"
 
 Экран блокировки: `Super+Escape` / `Super+L`, пароль проверяется через PAM.
 
+Окно пароля (`modules/auth.py`) заменяет два системных диалога:
+
+- **polkit** — когда `pkexec`, `systemctl`, GParted и т.п. просят права. Сторонний агент (polkit-gnome, lxpolkit) не нужен; если он уже занял сессию, эта часть молча отключается.
+- **gnome-keyring** — разблокировка и создание связки ключей (например, при запуске браузера). Шелл занимает `org.gnome.keyring.SystemPrompter`; без шелла D-Bus, как раньше, запускает `gcr-prompter`.
+
 ## Установка
 
 Системные пакеты: `python` 3.14, `gtk3`, `python-gobject`, `picom`, `pipewire` (`wpctl`, `pactl`), `lm_sensors`,
