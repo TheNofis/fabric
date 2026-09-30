@@ -128,6 +128,7 @@ class NotificationHub:
                 ScrolledWindow(
                     h_scrollbar_policy="never",
                     v_scrollbar_policy="automatic",
+                    propagate_height=False,  # Fabric defaults to True: the list would grow the window past the screen
                     child=self.history,
                     h_expand=True,
                     v_expand=True,
