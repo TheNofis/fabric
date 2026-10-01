@@ -69,6 +69,14 @@ Dayline хранит заметки локально, поддерживает �
 |---|---|---|
 | ![](screenshots/music-mock.png) | ![](screenshots/notification-center-mock.png) | ![](screenshots/voice-mock.png) |
 
+| Popup-уведомления | Пароль polkit/keyring | Экран блокировки |
+|---|---|---|
+| ![](screenshots/notifications.png) | ![](screenshots/auth.png) | ![](screenshots/lock.png) |
+
+| OSD громкости | OSD раскладки |
+|---|---|
+| ![](screenshots/volume-osd.png) | ![](screenshots/layout-osd.png) |
+
 Голосовой OSD не забирает фокус: распознанные фразы печатаются в активное поле. Модель `faster-whisper`
 запускается отдельным `uv`-скриптом и использует CUDA при наличии, иначе CPU.
 
@@ -113,6 +121,12 @@ FABRIC_MOCK=1 ./launch.sh
 
 Режим не запускает системные скрипты, не обращается к сети и не использует микрофон; данные находятся в
 `services/mock.py`.
+
+Проверка изоляции:
+
+```sh
+FABRIC_MOCK=1 ~/.config/fabric/.venv/bin/python test_mock.py
+```
 
 Блюр и анимации picom настраиваются только для окон с классом `Config.py`. Готовый конфиг лежит в
 [`picom.conf`](picom.conf) (picom v12+, backend `glx`):
