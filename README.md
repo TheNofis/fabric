@@ -1,10 +1,14 @@
 # Fabric shell
 
-Десктоп-шелл для i3/X11 на [Fabric](https://github.com/Fabric-Development/fabric): бар, лаунчер вместо rofi,
-уведомления, музыка, OSD громкости, календарь и экран блокировки. Дизайн по мотивам macOS, стеклянные
-поверхности с блюром picom поверх обоев.
+Десктоп-шелл для i3/X11 на [Fabric](https://github.com/Fabric-Development/fabric): стеклянный macOS-подобный бар,
+лаунчер вместо rofi, календарь, заметки Dayline, музыка, звук, сеть, системный монитор, лимиты Claude,
+уведомления, голосовой ввод и экран блокировки.
 
-![Бар](screenshots/bar.png)
+![Бар с лимитами Claude, сетью, яркостью и громкостью](screenshots/bar-brightness-mock.png)
+
+Все новые снимки в этом README сделаны в отдельном worktree с `FABRIC_MOCK=1`. Mock-режим подставляет
+стабильные значения для CPU/RAM/GPU, сети, звука, музыки, Claude, рабочих пространств, календаря,
+уведомлений и голосового OSD.
 
 ## Лаунчер
 
@@ -14,64 +18,77 @@
 |---|---|---|
 | ![](screenshots/launcher-empty.png) | ![](screenshots/launcher-apps.png) | ![](screenshots/launcher-calc.png) |
 
-| Сайты | Эмодзи |
-|---|---|
-| ![](screenshots/launcher-sites.png) | ![](screenshots/launcher-emoji.png) |
+| Сайты | SSH-хосты | Эмодзи |
+|---|---|---|
+| ![](screenshots/launcher-sites.png) | ![](screenshots/launcher-ssh-mock.png) | ![](screenshots/launcher-emoji.png) |
 
 | Ввод | Результат |
 |---|---|
-| `chr`, `cs2`, `lw`, `chrmium` | приложения: префикс, подстрока, затем нечёткий поиск (первые буквы слов, пропущенные буквы); чаще запускаемые выше |
+| `chr`, `cs2`, `lw`, `chrmium` | приложения: префикс, подстрока, затем нечёткий поиск; чаще запускаемые выше |
 | `gh`, `sj24` | сайты из [`sites.toml`](sites.toml), открываются в браузере |
+| `ssh` | SSH-хосты из `sites.toml`, открываются в терминале |
 | `youtube.com`, `https://…` | открыть ссылку |
 | `(1+2)*3^2`, `sqrt(2)` | калькулятор, `Enter` копирует результат |
-| `lock`, `suspend`, `reboot`, `shutdown`, `logout` | питание; reboot/shutdown/logout просят второй `Enter` |
+| `lock`, `suspend`, `reboot`, `shutdown`, `logout` | питание; опасные действия просят второй `Enter` |
 | `> htop` | команда в терминале (`st`) или в фоне |
-| `c:` `c: текст` | история CopyQ, `Enter` делает запись текущим буфером |
+| `c:` `c: текст` | история CopyQ |
 | `:fire` | эмодзи, `Enter` копирует |
 | что угодно без совпадений | поиск в Chromium |
 
 `↑`/`↓`, `Tab`/`Shift+Tab` — выбор, `Enter` или клик — запуск, `Esc` или клик мимо — закрыть.
 
-### Сайты
+### Сайты и SSH
 
 ```toml
 [GitHub]
 url = "https://github.com"
-icon = "\U000F02A4"        # глиф Nerd Font, необязательно
 
-["Docker Hub"]              # имя с пробелом — в кавычках
-url = "https://hub.docker.com"
+["Build server"]
+ssh = "dev@build.example"
 ```
 
 Файл перечитывается при каждом открытии лаунчера, перезапуск не нужен.
 
-## Остальные окна
+## Панели и окна
 
-| Музыка (`Super+M`) | Календарь (клик по часам) | Громкость |
+Клик по часам открывает календарь, по статистике слева — системный монитор, по сети — Wi-Fi/Ethernet,
+по громкости — устройства вывода и ввода. Наведение на яркость показывает слайдер; колесо меняет её на 5%.
+
+| Календарь | Системный монитор | Claude: 5-часовое и недельное окно |
 |---|---|---|
-| ![](screenshots/music.png) | ![](screenshots/calendar.png) | ![](screenshots/volume-osd.png) |
+| ![](screenshots/calendar-mock.png) | ![](screenshots/system-monitor-mock.png) | ![](screenshots/claude-mock.png) |
 
-| Уведомления | Центр уведомлений (`Super+N`) |
-|---|---|
-| ![](screenshots/notifications.png) | ![](screenshots/notification-center.png) |
+| Dayline (`Super+C`) | Звук | Сеть |
+|---|---|---|
+| ![](screenshots/dayline-mock.png) | ![](screenshots/sound-mock.png) | ![](screenshots/network-mock.png) |
+
+Dayline хранит заметки локально, поддерживает время, приоритеты, повторения и двустороннюю синхронизацию
+с iCloud Reminders. Без iCloud заметки работают локально.
+
+| Музыка (`Super+M`) | Уведомления и центр (`Super+N`) | Голосовой ввод (`Super+V`) |
+|---|---|---|
+| ![](screenshots/music-mock.png) | ![](screenshots/notification-center-mock.png) | ![](screenshots/voice-mock.png) |
+
+Голосовой OSD не забирает фокус: распознанные фразы печатаются в активное поле. Модель `faster-whisper`
+запускается отдельным `uv`-скриптом и использует CUDA при наличии, иначе CPU.
 
 Экран блокировки: `Super+Escape` / `Super+L`, пароль проверяется через PAM.
 
 Окно пароля (`modules/auth.py`) заменяет два системных диалога:
 
-- **polkit** — когда `pkexec`, `systemctl`, GParted и т.п. просят права. Сторонний агент (polkit-gnome, lxpolkit) не нужен; если он уже занял сессию, эта часть молча отключается.
-- **gnome-keyring** — разблокировка и создание связки ключей (например, при запуске браузера). Шелл занимает `org.gnome.keyring.SystemPrompter`; без шелла D-Bus, как раньше, запускает `gcr-prompter`.
+- **polkit** — когда `pkexec`, `systemctl`, GParted и другие операции просят права;
+- **gnome-keyring** — разблокировка и создание связки ключей при запуске приложений.
 
 ## Установка
 
 Системные пакеты: `python` 3.14, `gtk3`, `python-gobject`, `picom`, `pipewire` (`wpctl`, `pactl`), `lm_sensors`,
-`jq`, `copyq`, `st`, `chromium`, шрифты JetBrainsMono Nerd Font и Noto Color Emoji.
+`jq`, `copyq`, `st`, `chromium`, `xdotool`, шрифты JetBrainsMono Nerd Font и Noto Color Emoji.
 
 ```sh
 python -m venv ~/.config/fabric/.venv
 ~/.config/fabric/.venv/bin/pip install -r ~/.config/fabric/requirements.txt
-~/.config/fabric/.venv/bin/python ~/.config/fabric/config.py --check   # самопроверка
-~/.config/fabric/launch.sh                                             # запуск (заменяет polybar)
+~/.config/fabric/.venv/bin/python ~/.config/fabric/config.py --check
+~/.config/fabric/launch.sh
 ```
 
 i3:
@@ -81,19 +98,29 @@ exec --no-startup-id $HOME/.config/fabric/launch.sh
 bindsym $mod+d      exec --no-startup-id $HOME/.config/fabric/toggle-launcher.sh
 bindsym $mod+m      exec --no-startup-id $HOME/.config/fabric/toggle-music.sh
 bindsym $mod+n      exec --no-startup-id $HOME/.config/fabric/toggle-notifications.sh
+bindsym $mod+c      exec --no-startup-id $HOME/.config/fabric/toggle-dayline.sh
+bindsym $mod+v      exec --no-startup-id $HOME/.config/fabric/toggle-voice.sh
 bindsym $mod+Escape exec --no-startup-id $HOME/.config/fabric/lock.sh
 ```
 
+### Mock-режим для снимков
+
+В отдельном worktree или на стенде без реальных источников данных:
+
+```sh
+FABRIC_MOCK=1 ./launch.sh
+```
+
+Режим не запускает системные скрипты, не обращается к сети и не использует микрофон; данные находятся в
+`services/mock.py`.
+
 Блюр и анимации picom настраиваются только для окон с классом `Config.py`. Готовый конфиг лежит в
-[`picom.conf`](picom.conf) (picom v12+, backend `glx`). Подключить его можно ссылкой:
+[`picom.conf`](picom.conf) (picom v12+, backend `glx`):
 
 ```sh
 ln -sf ~/.config/fabric/picom.conf ~/.config/picom/picom.conf
 pkill picom; picom -b
 ```
-
-Окна шелла обрезаны X-shape по форме панелей (`MonitorWindow.clip_to`), поэтому блюр виден только под
-ними. Если блюр пропал после подключения или отключения монитора, перезапустите picom.
 
 ## Устройство
 
