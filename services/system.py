@@ -16,13 +16,14 @@ from typing import Any
 from gi.repository import GLib
 
 from services.state import PollingState, State
+from services import mock
 from shared.widgets import run
 
 
 class ClockState(PollingState):
     # Every consumer shows minutes at most, so the value (and callbacks) change once per minute.
     def read(self) -> datetime:
-        return datetime.now().replace(second=0, microsecond=0)
+        return mock.NOW if mock.ENABLED else datetime.now().replace(second=0, microsecond=0)
 
 
 def busy(now: tuple[int, int], before: tuple[int, int]) -> float:
@@ -104,6 +105,8 @@ class SystemState(PollingState):
         return max(values, default=0.0)
 
     def read(self) -> dict[str, Any]:
+        if mock.ENABLED:
+            return mock.system()
         times = self.cpu()
         before = self.previous_cpu if self.previous_cpu and len(self.previous_cpu) == len(times) else times
         self.previous_cpu = times
@@ -166,6 +169,8 @@ class NetworkState(PollingState):
             return ""
 
     def read(self) -> dict[str, str]:
+        if mock.ENABLED:
+            return mock.network()
         try:
             iface = default_interface(Path("/proc/net/route").read_text())
             stats = Path("/sys/class/net", iface, "statistics") if iface else None
@@ -192,8 +197,8 @@ class BacklightState(PollingState):
     Writes go through elogind's SetBrightness, so no video group or root is needed."""
 
     def __init__(self):
-        self.device = next(Path("/sys/class/backlight").glob("*"), None)
-        self.max = int((self.device / "max_brightness").read_text()) if self.device else 0
+        self.device = Path("/mock/backlight") if mock.ENABLED else next(Path("/sys/class/backlight").glob("*"), None)
+        self.max = 100 if mock.ENABLED else int((self.device / "max_brightness").read_text()) if self.device else 0
         self.hold = 0.0
         super().__init__()
 
@@ -204,11 +209,16 @@ class BacklightState(PollingState):
         return True
 
     def read(self) -> int | None:
+        if mock.ENABLED:
+            return self.value if self.value is not None else 72
         if not self.device:
             return None
         return round(int((self.device / "brightness").read_text()) * 100 / self.max)
 
     def set(self, percent: int) -> None:
+        if mock.ENABLED:
+            self.emit(max(1, min(percent, 100)))
+            return
         if not self.device:
             return
         raw = max(1, round(min(percent, 100) * self.max / 100))  # never 0: a black screen is hard to undo
@@ -247,6 +257,9 @@ class KeyboardState(State):
     LOCK_MASK = 1 << 1
 
     def __init__(self):
+        if mock.ENABLED:
+            State.__init__(self, {"layout": "us", "caps": False})
+            return
         xlib = self.xlib = ctypes.CDLL(ctypes.util.find_library("X11"))
         xlib.XOpenDisplay.restype = ctypes.c_void_p
         xlib.XkbGetState.argtypes = (ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(XkbStateRec))

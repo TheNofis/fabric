@@ -19,6 +19,7 @@ from urllib.parse import quote_plus, urlparse
 
 from shared.constants import ROOT, RUNTIME
 from shared.widgets import copy_text, run
+from services import mock
 
 MAX_RESULTS = 7
 TERMINAL = "st"
@@ -192,6 +193,21 @@ class Site:
             run(BROWSER, self.url)
 
 
+@dataclass
+class MockApp:
+    display_name: str
+    name: str
+    generic_name: str
+    executable: str
+    icon: str
+
+    def get_icon_pixbuf(self, *_: Any) -> str:
+        return self.icon
+
+    def launch(self) -> None:
+        return None
+
+
 SSH_ICON = "\U000F048B"  # nf-md-server
 
 
@@ -301,7 +317,15 @@ class Sources:
         self._history: list[str] | None = None
 
     def reset(self, apps: list[Any]) -> None:
-        self.apps = apps + load_sites()
+        if mock.ENABLED:
+            apps = [
+                MockApp("Visual Studio Code", "Visual Studio Code", "Code Editor", "code", "󰨞"),
+                MockApp("Chromium", "Chromium", "Web Browser", "chromium", "󰊯"),
+                MockApp("Files", "Files", "File Manager", "nautilus", "󰉋"),
+            ]
+            self.apps = apps + [Site("Build server", ssh="dev@build.example"), Site("Production", ssh="ops@prod.example")]
+        else:
+            self.apps = apps + load_sites()
         self._history = None  # re-read lazily, only if "c:" is typed during this open
 
     def search(self, query: str, app_icon: Callable[[Any], Any], web_icon: Any) -> list[Item]:

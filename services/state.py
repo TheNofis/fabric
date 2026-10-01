@@ -10,6 +10,8 @@ from typing import Any, Callable
 
 from gi.repository import Gio, GLib
 
+from services import mock
+
 
 def parse_json(value: str, fallback: Any) -> Any:
     try:
@@ -48,7 +50,8 @@ class PollingState(State):
     def __init__(self, default: Any = None):
         super().__init__(default)
         self.tick()
-        GLib.timeout_add(self.interval, self.tick)
+        if not mock.ENABLED:
+            GLib.timeout_add(self.interval, self.tick)
 
     def read(self) -> Any:
         raise NotImplementedError
@@ -83,6 +86,9 @@ class JsonState(State):
         if self.running:
             return
         self.running = True
+        if mock.ENABLED:
+            self.emit(mock.json_for(self.script))
+            return
         self._spawn()
 
     def stop(self) -> None:

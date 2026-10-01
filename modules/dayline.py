@@ -20,6 +20,7 @@ from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import Gdk, Gtk, Pango
 
 from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_time, split_time, step_time
+from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
 from shared.ui import nav_button
@@ -59,7 +60,7 @@ def list_dot(color: str) -> Gtk.Label:
 class DaylineWindow(PopupWindow):
     def __init__(self, monitor: Monitor, clock: ClockState, notes: Notes):
         self.notes = notes
-        self.now = datetime.now()
+        self.now = mock.NOW if mock.ENABLED else datetime.now()
         self.today = self.selected = self.now.date()
         self.undated = False  # the "No date" section is the target instead of the picked day
         self.month = month_start(self.today)
@@ -496,8 +497,9 @@ def build(context: Any) -> list[Any]:
     context.notes = Notes()
     context.dayline = DaylineWindow(context.monitors[0], context.clock, context.notes)
     context.clock.subscribe(lambda now: remind(context.notes, now))
-    sync = Sync(context.notes, lambda title, body: run("notify-send", "-a", "Dayline", "-i", "x-office-calendar", title, body))
-    context.dayline.connect("show", lambda *_: sync.run())  # fresh from iCloud whenever the panel opens
+    if not mock.ENABLED:
+        sync = Sync(context.notes, lambda title, body: run("notify-send", "-a", "Dayline", "-i", "x-office-calendar", title, body))
+        context.dayline.connect("show", lambda *_: sync.run())  # fresh from iCloud whenever the panel opens
     return [context.dayline]
 
 

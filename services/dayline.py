@@ -16,6 +16,7 @@ from typing import Any, Callable
 from gi.repository import GLib
 
 from services.state import State
+from services import mock
 
 DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 DATA_DIR = DATA / "dayline"
@@ -125,6 +126,20 @@ class Notes(State):
 
     def __init__(self, path: Path = NOTES_FILE):
         self.path = path
+        if mock.ENABLED:
+            today = mock.NOW.date()
+            self.all = [
+                Note(1, today.isoformat(), "09:30", "Review release checklist", desc="README, screenshots and final commit", priority=5, list_id="mock"),
+                Note(2, today.isoformat(), "14:00", "Ship the new shell panels", priority=1, list_id="mock"),
+                Note(3, (today + timedelta(days=1)).isoformat(), "", "Team demo", flagged=True, list_id="mock"),
+                Note(4, "", "", "Ideas for the next iteration", desc="Keep the bar quiet and useful", list_id="mock"),
+            ]
+            self.lists = [["mock", "Personal", "#4A90E2"]]
+            self.list = "mock"
+            self.cursor = "mock"
+            self.on_change: Callable[[], None] = lambda: None
+            super().__init__(self.visible(self.all, today))
+            return
         if path == NOTES_FILE and not path.exists() and OLD_NOTES_FILE.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             OLD_NOTES_FILE.replace(path)

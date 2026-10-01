@@ -18,6 +18,7 @@ from modules.claude import ClaudeWindow, claude_slot
 from modules.network import NetworkWindow
 from modules.sound import SoundWindow
 from modules.sysmon import SystemMonitorWindow
+from services import mock
 from services.monitors import Monitor
 from services.state import JsonState
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
@@ -76,6 +77,8 @@ class Tray(Box):
         super().__init__(spacing=2, style_classes=("tray",))
         self.set_no_show_all(True)  # the bar's show_all() must not reveal passive items
         self.buttons: dict[str, Button] = {}
+        if mock.ENABLED:
+            return
         self.watcher = get_tray_watcher()
         self.watcher.connect("item-added", lambda _watcher, key: self.add_item(key))
         self.watcher.connect("item-removed", lambda _watcher, key: self.remove_item(key))

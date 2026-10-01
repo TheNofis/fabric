@@ -15,6 +15,7 @@ from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import GLib, Gtk, Pango
 
 from services.monitors import Monitor
+from services import mock
 from services.system import ClockState
 from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP
 from shared.widgets import css, flag, slide, text
@@ -257,6 +258,20 @@ class NotificationHub:
         for record in list(self.records):
             self.remove_record(record.id)
 
+    def seed_mock(self) -> None:
+        """Populate history without a D-Bus notification producer."""
+        for record in (
+            NotificationRecord(9001, "Fabric", "Voice input ready", "Speak a phrase and it will be typed into the focused field.", 0, "", "10:29"),
+            NotificationRecord(9002, "Dayline", "Reminder in 30 minutes", "Ship the new shell panels", 0, "", "10:00"),
+            NotificationRecord(9003, "Claude", "Usage is on pace", "Session 63% · resets today 12:48", 0, "", "09:45"),
+        ):
+            self.records.insert(0, record)
+            card = NotificationCard(record, True, self.activate, self.close)
+            self.history.pack_start(card, False, False, 0)
+            self.history.reorder_child(card, 0)
+            self.history_widgets[record.id] = card
+            card.show_all()
+
     def toggle_dnd(self) -> None:
         self.dnd = not self.dnd
         DND_FILE.touch() if self.dnd else DND_FILE.unlink(missing_ok=True)
@@ -269,4 +284,6 @@ class NotificationHub:
 
 def build(context: Any) -> list[Any]:
     context.notifications = NotificationHub(context.monitors[0], context.clock)
+    if mock.ENABLED:
+        context.notifications.seed_mock()
     return [context.notifications.popup_window, context.notifications.center_window]

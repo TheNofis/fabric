@@ -10,6 +10,7 @@ from fabric.widgets.button import Button
 from gi.repository import Gdk, Gtk
 
 from services.dayline import grid_days, month_start
+from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
 from shared.ui import nav_button
@@ -19,7 +20,7 @@ from shared.window import BarPanel
 
 class CalendarWindow(BarPanel):
     def __init__(self, monitor: Monitor, clock: ClockState):
-        self.today = date.today()
+        self.today = mock.NOW.date() if mock.ENABLED else date.today()
         self.month = month_start(self.today)
 
         self.day_number = text("", "cal-day", xalign=0)
@@ -101,4 +102,3 @@ def build(context: Any) -> list[Any]:
         for monitor in context.monitors
     ]
     return context.calendars
-
