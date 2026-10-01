@@ -27,6 +27,7 @@ from modules import auth as auth_module
 from modules import sound as sound_module
 from modules import sysmon as sysmon_module
 from modules import volume_osd as volume_osd_module
+from modules import voice as voice_module
 from modules.bar import Bar
 from modules.calendar import CalendarWindow
 from modules.launcher import LauncherWindow
@@ -54,6 +55,7 @@ class Shell:
         self.network = NetworkState()
         self.backlight = BacklightState()
         self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
+        self.voice_state = JsonState(SCRIPTS / "voice.py", {"state": "loading"}, autostart=False)
         self.keyboard = KeyboardState()
         self.registry = ModuleRegistry(
             (
@@ -68,6 +70,7 @@ class Shell:
                 ModuleSpec("notifications", notifications_module.build),
                 ModuleSpec("launcher", launcher_module.build),
                 ModuleSpec("dayline", dayline_module.build),
+                ModuleSpec("voice", voice_module.build),
                 ModuleSpec("lock", lock_module.build),
                 ModuleSpec("auth", auth_module.build),
             )
@@ -83,6 +86,7 @@ class Shell:
         self.notifications: NotificationHub | None = None
         self.launcher: LauncherWindow | None = None
         self.dayline: dayline_module.DaylineWindow | None = None
+        self.voice: voice_module.VoiceWindow | None = None
         self.lock: lock_module.Lock | None = None
         self.windows = self.registry.build(self)
 
@@ -112,6 +116,12 @@ def toggle_launcher() -> None:
 def toggle_dayline() -> None:
     if shell:
         shell.dayline.toggle()
+
+
+@Application.action("toggle-voice")
+def toggle_voice() -> None:
+    if shell:
+        shell.voice.toggle()
 
 
 @Application.action("lock")

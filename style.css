@@ -289,6 +289,10 @@ tooltip {
 .layout-osd-caps.active { color: @info; }
 .layout-osd-item.active { color: white; background-color: @accent_fill; }
 .volume-osd-icon:hover { background-color: alpha(@fg, 0.10); }
+.voice-osd-icon { color: @muted; font-size: 18px; }
+.voice-osd-icon.speaking { color: @critical; }
+.voice-osd-text { color: @fg; font-size: 13px; }
+.voice-osd-text.muted { color: @muted; }
 
 .notification-stack { padding: 0; }
 .notification, .notification-center {
