@@ -78,6 +78,9 @@ class Tray(Box):
         self.set_no_show_all(True)  # the bar's show_all() must not reveal passive items
         self.buttons: dict[str, Button] = {}
         if mock.ENABLED:
+            for glyph, title in (("󰊤", "GitHub"), ("󰋋", "Studio Headset"), ("󰄗", "Clipboard")):
+                self.add(Button(child=text(glyph, "icon"), style_classes=("bar-button", "tray-item"), tooltip_text=title))
+            self.show_all()
             return
         self.watcher = get_tray_watcher()
         self.watcher.connect("item-added", lambda _watcher, key: self.add_item(key))

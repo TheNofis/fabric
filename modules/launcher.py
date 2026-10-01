@@ -17,6 +17,7 @@ from fabric.widgets.overlay import Overlay
 from gi.repository import Gdk, GLib, Gtk, Pango
 
 from services.launcher import Item, Sources
+from services import mock
 from services.monitors import Monitor
 from shared.widgets import flag, slide, text
 from shared.window import PopupWindow
@@ -69,7 +70,7 @@ class LauncherWindow(PopupWindow):
 
     def _open(self) -> None:
         # ponytail: rescans .desktop files on every open (~ms); cache + Gio.AppInfoMonitor if it ever lags
-        self.sources.reset(get_desktop_applications())
+        self.sources.reset([] if mock.ENABLED else get_desktop_applications())
         self.entry.set_text("")
         self.entry.grab_focus()
         self.refresh()

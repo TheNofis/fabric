@@ -14,6 +14,7 @@ from fabric.widgets.entry import Entry
 from gi.repository import Gtk
 
 from services import keyring, polkit
+from services import mock
 from services.monitors import Monitor
 from shared.ui import button, password_entry, password_field
 from shared.widgets import flag, text
@@ -126,6 +127,8 @@ class AuthWindow(PopupWindow):
 
 
 def build(context: Any) -> list[Any]:
+    if mock.ENABLED:
+        return [AuthWindow(context.monitors[0])]
     windows = []
     for service in (polkit, keyring):
         window = AuthWindow(context.monitors[0])

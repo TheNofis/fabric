@@ -13,6 +13,7 @@ from gi.repository import Gtk
 
 from services.monitors import Monitor
 from services.state import JsonState
+from services import mock
 from services.system import SystemState, cpu_model
 from shared.constants import SCRIPTS
 from shared.ui import amount, big_value, header, meter, panel
@@ -101,7 +102,7 @@ class Graph(Gtk.DrawingArea):
 class SystemMonitorWindow(BarPanel):
     def __init__(self, monitor: Monitor, system: SystemState, gpu: JsonState, history: deque[float]):
         try:
-            model = cpu_model(Path("/proc/cpuinfo").read_text())
+            model = "AMD Ryzen 7 5800X" if mock.ENABLED else cpu_model(Path("/proc/cpuinfo").read_text())
         except OSError:
             model = ""
 
@@ -213,6 +214,8 @@ class SystemMonitorWindow(BarPanel):
 
 def build(context: Any) -> list[Any]:
     history: deque[float] = deque(maxlen=HISTORY)
+    if mock.ENABLED:
+        history.extend([22, 25, 24, 28, 32, 30, 26, 24, 29, 35, 42, 45, 38, 33, 28, 31, 34, 37] * 3)
     context.system.subscribe(lambda value: history.append(value["cpu"]))
     gpu = JsonState(SCRIPTS / "gpu.sh", {}, autostart=False)
     context.sysmons = [SystemMonitorWindow(monitor, context.system, gpu, history) for monitor in context.monitors]

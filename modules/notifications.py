@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable
+from types import SimpleNamespace
 
 from fabric.notifications import Notifications
 from fabric.widgets.box import Box
@@ -100,7 +101,7 @@ class NotificationHub:
         self.timers: dict[int, int] = {}
         self.deadlines: dict[int, tuple[float, float]] = {}  # id -> (monotonic end, timeout s)
         self.progress_timer = 0
-        self.dnd = DND_FILE.exists()
+        self.dnd = False if mock.ENABLED else DND_FILE.exists()
         self.history = Box(orientation="v", spacing=10)
         self.popups = Box(orientation="v", spacing=8, style_classes=("notification-stack",))
         self.dnd_label = text("󰂛" if self.dnd else "󰂚")
@@ -156,9 +157,10 @@ class NotificationHub:
         )
         self.popup_window.clip_to(14, self.popups, parts=lambda: self.popups.children)
         self.center_window.clip_to(14, center_body)
-        self.service = Notifications(on_notification_added=self.add)
+        self.service = SimpleNamespace(notifications={}) if mock.ENABLED else Notifications(on_notification_added=self.add)
         # closed by the app (CloseNotification) or by us: drop the popup, keep history
-        self.service.connect("notification-removed", lambda _service, nid: self.remove_popup(nid))
+        if not mock.ENABLED:
+            self.service.connect("notification-removed", lambda _service, nid: self.remove_popup(nid))
 
     def add(self, service: Notifications, notification_id: int) -> None:
         notification = service.get_notification_from_id(notification_id)
@@ -271,10 +273,18 @@ class NotificationHub:
             self.history.reorder_child(card, 0)
             self.history_widgets[record.id] = card
             card.show_all()
+            if record.id != 9003:
+                popup = NotificationCard(record, False, self.activate, self.close)
+                self.popups.add(slide(popup, "down"))
+                self.popup_widgets[record.id] = popup
+        self.popups.show_all()
+        for revealer in self.popups.get_children():
+            revealer.reveal()
 
     def toggle_dnd(self) -> None:
         self.dnd = not self.dnd
-        DND_FILE.touch() if self.dnd else DND_FILE.unlink(missing_ok=True)
+        if not mock.ENABLED:
+            DND_FILE.touch() if self.dnd else DND_FILE.unlink(missing_ok=True)
         self.dnd_label.set_text("󰂛" if self.dnd else "󰂚")
         flag(self.dnd_button, "active", self.dnd)
 

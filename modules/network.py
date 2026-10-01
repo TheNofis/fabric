@@ -12,6 +12,7 @@ from gi.repository import Gio, Gtk, Pango
 
 from services.monitors import Monitor
 from services.state import JsonState, State
+from services import mock
 from shared.constants import SCRIPTS
 from shared.ui import big_value, button, check, header, list_row, panel, password_entry, password_field, row_list, switch
 from shared.widgets import flag, text
@@ -59,6 +60,9 @@ def signal_icon(signal: int) -> str:
 
 def nmcli(args: list[str], done: Callable[[bool, str], None]) -> None:
     """Run nmcli without blocking the UI; done(ok, stderr)."""
+    if mock.ENABLED:
+        done(True, "")
+        return
     process = Gio.Subprocess.new(["nmcli", "--wait", "20", *args], Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE)
     process.communicate_utf8_async(None, None, lambda proc, result: done(proc.get_successful(), proc.communicate_utf8_finish(result)[2] or ""))
 

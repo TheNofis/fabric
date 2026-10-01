@@ -305,6 +305,10 @@ class Notes(State):
             self.on_change()
 
     def _save(self, notes: list[Note | None], local: bool = False) -> None:
+        if mock.ENABLED:
+            self.all = sorted((note for note in notes if note), key=self.order)
+            self.emit(self.visible(self.all, mock.NOW.date()))
+            return
         cutoff = (date.today() - KEEP_DONE).isoformat()
         # completed long ago and already in iCloud: forget it here
         notes = sorted((note for note in notes if note and not (note.done and note.done < cutoff and not note.dirty)), key=self.order)

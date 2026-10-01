@@ -11,8 +11,12 @@ from fabric.widgets.label import Label
 from fabric.widgets.revealer import Revealer
 from gi.repository import Gdk, GLib, Gtk
 
+from services import mock
+
 
 def run(*args: str) -> None:
+    if mock.ENABLED:
+        return
     # GLib double-forks without DO_NOT_REAP_CHILD, so no zombies are left behind.
     try:
         GLib.spawn_async(
@@ -30,6 +34,8 @@ def run(*args: str) -> None:
 
 
 def copy_text(value: str) -> None:
+    if mock.ENABLED:
+        return
     Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(value, -1)
 
 
@@ -120,4 +126,3 @@ def stat(icon: str, *children: Gtk.Widget) -> Box:
 
 def island(*children: Gtk.Widget, classes: tuple[str, ...] = ()) -> Box:
     return Box(spacing=18, style_classes=("island", *classes), children=children)
-

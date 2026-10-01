@@ -266,6 +266,8 @@ def commands(command: str) -> list[Item]:
 # --- clipboard: "c: text" ----------------------------------------------------
 
 def read_clipboard_history() -> list[str]:
+    if mock.ENABLED:
+        return ["git status --short", "https://example.com/project", "Release notes: new panels, voice input and Dayline"]
     script = 'var r = []; for (var i = 0; i < size(); i++) r.push(str(read(i)).slice(0, 300)); print(r.join("\\x1e"))'
     try:
         out = subprocess.run(["copyq", "eval", "--", script], capture_output=True, text=True, timeout=2).stdout
@@ -313,7 +315,7 @@ class Sources:
 
     def __init__(self) -> None:
         self.apps: list[Any] = []
-        self.usage: dict[str, int] = load_usage()
+        self.usage: dict[str, int] = {} if mock.ENABLED else load_usage()
         self._history: list[str] | None = None
 
     def reset(self, apps: list[Any]) -> None:
@@ -323,7 +325,7 @@ class Sources:
                 MockApp("Chromium", "Chromium", "Web Browser", "chromium", "󰊯"),
                 MockApp("Files", "Files", "File Manager", "nautilus", "󰉋"),
             ]
-            self.apps = apps + [Site("Build server", ssh="dev@build.example"), Site("Production", ssh="ops@prod.example")]
+            self.apps = apps + [Site("GitHub", "https://github.com", "󰊤"), Site("Project docs", "https://docs.example.com"), Site("Build server", icon=SSH_ICON, ssh="dev@build.example"), Site("Production", icon=SSH_ICON, ssh="ops@prod.example")]
         else:
             self.apps = apps + load_sites()
         self._history = None  # re-read lazily, only if "c:" is typed during this open
@@ -356,6 +358,8 @@ class Sources:
         return items[:MAX_RESULTS - 1] + [Item(web_icon, f"Search “{stripped}” in Chromium", lambda: run(BROWSER, SEARCH_URL + quote_plus(stripped)))]
 
     def launch(self, app: Any) -> None:
+        if mock.ENABLED:
+            return
         self.usage[app.name] = self.usage.get(app.name, 0) + 1
         try:
             USAGE_FILE.write_text(json.dumps(self.usage))

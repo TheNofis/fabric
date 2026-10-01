@@ -11,6 +11,7 @@ from gi.repository import Gdk, GLib
 
 from services.monitors import Monitor
 from services.pam import authenticate
+from services import mock
 from shared.ui import password_entry, password_field
 from shared.widgets import flag, text
 from shared.window import MonitorWindow
@@ -20,6 +21,8 @@ class LockWindow(MonitorWindow):
     def __init__(self, monitor: Monitor, context: Any, entry: Entry | None = None):
         time, date = text("", "lock-time"), text("", "lock-date")
         center = Box(orientation="v", spacing=6, h_expand=True, v_expand=True, h_align="center", v_align="center", children=[time, date])
+        if mock.ENABLED:
+            center.add(text("Demo preview", "lock-layout"))
         if entry is not None:
             layout = text("", "lock-layout")
             center.add(password_field(entry, layout))
@@ -67,6 +70,8 @@ class Lock:
         return self.locked
 
     def _grab(self) -> bool:
+        if mock.ENABLED:
+            return False
         # Retries forever: while locked, keys must never reach other windows.
         # Fails while i3 still holds the hotkey that triggered the lock.
         main = self.windows[0]
@@ -80,6 +85,9 @@ class Lock:
     def _check(self) -> None:
         password = self.entry.get_text()
         if not password or not self.entry.get_sensitive():
+            return
+        if mock.ENABLED:
+            self._done(True)
             return
         self.entry.set_sensitive(False)
         flag(self.entry.get_parent(), "failed", False)
