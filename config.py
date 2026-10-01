@@ -37,7 +37,7 @@ from modules.registry import ModuleRegistry, ModuleSpec
 from modules.volume_osd import VolumeOSD
 from services.monitors import Monitor, parse_monitors, read_monitors
 from services.state import JsonState, State, parse_json
-from services.system import ClockState, KeyboardState, NetworkState, SystemState, busy, cpu_model, default_interface, human_bytes
+from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState, busy, cpu_model, default_interface, human_bytes
 from shared.constants import ROOT, SCRIPTS
 from shared.widgets import volume_icon
 
@@ -52,6 +52,7 @@ class Shell:
         self.workspaces = JsonState(SCRIPTS / "workspaces.sh", [])
         self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False})
         self.network = NetworkState()
+        self.backlight = BacklightState()
         self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
         self.keyboard = KeyboardState()
         self.registry = ModuleRegistry(

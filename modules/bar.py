@@ -1,4 +1,4 @@
-"""Status bar: system stats, clock, workspaces, keyboard, network, volume."""
+"""Status bar: system stats, clock, workspaces, keyboard, network, brightness, volume."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from modules.sound import SoundWindow
 from modules.sysmon import SystemMonitorWindow
 from services.monitors import Monitor
 from services.state import JsonState
-from services.system import ClockState, KeyboardState, NetworkState, SystemState
+from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
 from shared.constants import BAR_HEIGHT
 from shared.ui import slider
 from shared.widgets import flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
@@ -154,6 +154,7 @@ class Bar(MonitorWindow):
         network_panel: NetworkWindow,
         claude_usage: JsonState,
         claude_panel: ClaudeWindow,
+        backlight: BacklightState,
     ):
         temp = text("0°", "value")
         temp_stat = stat("󰔏", temp)
@@ -246,10 +247,35 @@ class Bar(MonitorWindow):
                 else run("pavucontrol") or True if event.button == 3 else False
             ),
         )
+        brightness_label = text("0%", "value", "w-pct")
+        brightness_icon = text("󰃠", "icon")
+        brightness_scale = slider("vol-slider", max_value=101, size=(88, -1))
+        brightness_syncing = {"value": False}
+        brightness_pending = {"source": 0}
+
+        def apply_brightness() -> bool:
+            brightness_pending["source"] = 0
+            backlight.set(int(brightness_scale.value))
+            return False
+
+        def drag_brightness(_scale: Scale) -> None:
+            if not brightness_syncing["value"] and not brightness_pending["source"]:
+                brightness_pending["source"] = GLib.timeout_add(50, apply_brightness)
+
+        brightness_scale.connect("value-changed", drag_brightness)
+        brightness_revealer = slide(brightness_scale, "left")
+        brightness_widget = hover_reveal(
+            Box(spacing=7, style_classes=("stat",), children=[brightness_revealer, brightness_icon, brightness_label]),
+            brightness_revealer,
+            events=("scroll",),
+            on_scroll_event=lambda _widget, event: backlight.set((backlight.value or 0) + (5 if scroll_up(event) else -5)) or True,
+        )
+
         right = island(
             Tray(),
             stat("󰌌", layout, caps),
             network_widget,
+            brightness_widget,
             volume_widget,
         )
 
@@ -300,6 +326,18 @@ class Bar(MonitorWindow):
             up.set_text(str(value.get("up", "")))
             flag(network_stat, "alert", not interface)
 
+        def update_brightness(value: int | None) -> None:
+            brightness_widget.set_visible(value is not None)
+            if value is None:
+                return
+            brightness_icon.set_text("󰃞" if value < 34 else "󰃟" if value < 67 else "󰃠")
+            brightness_label.set_text(f"{value}%")
+            if brightness_pending["source"]:
+                return  # mid-drag; keep the slider where the pointer is
+            brightness_syncing["value"] = True
+            brightness_scale.value = value
+            brightness_syncing["value"] = False
+
         def update_keyboard(value: dict[str, Any]) -> None:
             layout.set_text(str(value.get("layout", "us")))
             caps.set_visible(bool(value.get("caps")))
@@ -311,6 +349,7 @@ class Bar(MonitorWindow):
         audio.subscribe(update_audio)
         network.subscribe(update_network)
         keyboard.subscribe(update_keyboard)
+        backlight.subscribe(update_brightness)
 
 
 def build(context: Any) -> list[Any]:
@@ -329,6 +368,7 @@ def build(context: Any) -> list[Any]:
             network_panel,
             context.claude,
             claude_panel,
+            context.backlight,
         )
         for monitor, calendar, sysmon, sound, network_panel, claude_panel in zip(
             context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels

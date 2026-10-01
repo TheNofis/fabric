@@ -1,4 +1,4 @@
-"""In-process polling sources: clock, CPU/RAM/temperature, network, keyboard."""
+"""In-process polling sources: clock, CPU/RAM/temperature, network, backlight, keyboard."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import fcntl
 import os
 import socket
 import struct
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from typing import Any
 from gi.repository import GLib
 
 from services.state import PollingState, State
+from shared.widgets import run
 
 
 class ClockState(PollingState):
@@ -183,6 +185,37 @@ class NetworkState(PollingState):
             "down": human_bytes(max(rx - rx0, 0)),
             "up": human_bytes(max(tx - tx0, 0)),
         }
+
+
+class BacklightState(PollingState):
+    """Screen brightness in percent, None without a backlight (desktop monitors).
+    Writes go through elogind's SetBrightness, so no video group or root is needed."""
+
+    def __init__(self):
+        self.device = next(Path("/sys/class/backlight").glob("*"), None)
+        self.max = int((self.device / "max_brightness").read_text()) if self.device else 0
+        self.hold = 0.0
+        super().__init__()
+
+    def tick(self) -> bool:
+        # busctl is async: right after set() sysfs still has the old value and would yank the slider back
+        if time.monotonic() >= self.hold:
+            super().tick()
+        return True
+
+    def read(self) -> int | None:
+        if not self.device:
+            return None
+        return round(int((self.device / "brightness").read_text()) * 100 / self.max)
+
+    def set(self, percent: int) -> None:
+        if not self.device:
+            return
+        raw = max(1, round(min(percent, 100) * self.max / 100))  # never 0: a black screen is hard to undo
+        run("busctl", "call", "org.freedesktop.login1", "/org/freedesktop/login1/session/auto",
+            "org.freedesktop.login1.Session", "SetBrightness", "ssu", "backlight", self.device.name, str(raw))
+        self.hold = time.monotonic() + 1
+        self.emit(round(raw * 100 / self.max))
 
 
 class XkbStateRec(ctypes.Structure):
