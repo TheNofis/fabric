@@ -116,6 +116,10 @@ class Note:
     def when(self) -> datetime | None:
         return datetime.fromisoformat(f"{self.day}T{self.time}") if self.day and self.time else None
 
+    def overdue(self, now: datetime) -> bool:
+        """Open and its moment has passed: a timed note at its time, an all-day one once its day is over."""
+        return bool(self.day and not self.done and (self.when <= now if self.when else self.day < now.date().isoformat()))
+
 
 class Notes(State):
     """All notes, sorted by (day, time); emits the visible list after every change and saves it.
@@ -132,6 +136,7 @@ class Notes(State):
                 Note(1, today.isoformat(), "09:30", "Review release checklist", desc="README, screenshots and final commit", priority=5, list_id="mock"),
                 Note(2, today.isoformat(), "14:00", "Ship the new shell panels", priority=1, list_id="mock"),
                 Note(3, (today + timedelta(days=1)).isoformat(), "", "Team demo", flagged=True, list_id="mock"),
+                Note(5, (today - timedelta(days=2)).isoformat(), "", "Renew the domain", priority=1, list_id="mock"),
                 Note(4, "", "", "Ideas for the next iteration", desc="Keep the bar quiet and useful", list_id="mock"),
             ]
             self.lists = [["mock", "Personal", "#4A90E2"]]

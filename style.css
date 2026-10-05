@@ -121,6 +121,7 @@ tooltip {
 .dayline-dot { font-size: 8px; color: transparent; margin-top: -3px; }
 .dayline-cell.busy .dayline-dot { color: @muted; }
 .dayline-cell.today.busy .dayline-dot { color: white; }
+.dayline-cell.overdue .dayline-dot { color: @critical; }
 .dayline-next { margin-top: 12px; }
 .dayline-section { color: @muted; font-size: 11px; font-weight: 600; }
 .dayline-day { min-width: 330px; }
@@ -154,6 +155,14 @@ tooltip {
 .dayline-mark-priority { color: @fg; font-size: 12px; font-weight: 700; }
 .dayline-mark-flag { color: @warning; font-size: 12px; }
 .dayline-mark-repeat { color: @muted; font-size: 12px; }
+/* missed: red is the state, so it outranks the past dimming */
+.dayline-note.overdue { margin-bottom: 2px; border-radius: 5px; background-color: alpha(@critical, 0.05); }
+.dayline-note.overdue:hover { background-color: alpha(@critical, 0.09); }
+.dayline-note.overdue.editing { background-color: alpha(@critical, 0.14); }
+.dayline-note.overdue .dayline-text { color: mix(@fg, @critical, 0.18); }
+.dayline-note.overdue .dayline-when { color: @critical; font-weight: 500; }
+.dayline-note.overdue .dayline-check { color: alpha(@critical, 0.70); }
+.dayline-note.overdue .dayline-check:hover { color: @critical; background-color: alpha(@critical, 0.16); }
 .dayline-note.done .dayline-mark-priority, .dayline-note.done .dayline-mark-flag { color: alpha(@fg, 0.32); }
 /* "No date": a section heading that is also a target, like a day cell. */
 .dayline-undated { margin: 10px -8px 2px; padding: 4px 8px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }

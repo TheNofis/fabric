@@ -356,12 +356,14 @@ class DaylineWindow(PopupWindow):
         self.title.set_markup(f'{self.month:%B} <span fgalpha="64%">{self.month.year}</span>')
         flag(self.back, "away", self.selected != self.today or self.month != month_start(self.today))
         busy = {note.day for note in notes if note.day and not note.done}
+        late = {note.day for note in notes if note.overdue(self.now)}
         for (cell, number), day in zip(self.cells, grid_days(self.month)):
             number.set_text(str(day.day))
             flag(cell, "outside", day.month != self.month.month)
             flag(cell, "today", day == self.today)
             flag(cell, "selected", day == self.selected and not self.undated)
             flag(cell, "busy", day.isoformat() in busy)
+            flag(cell, "overdue", day.isoformat() in late)
 
         self.day_number.set_text(str(self.selected.day))
         self.weekday.set_text(self.selected.strftime("%A"))
@@ -369,9 +371,14 @@ class DaylineWindow(PopupWindow):
 
         for child in self.list.get_children():
             child.destroy()
+        # missed notes ride along on every later day, above that day's own
+        carried = [note for note in notes if note.day and note.day < self.selected.isoformat() and note.overdue(self.now)]
+        for note in carried:
+            self.list.add(self.row(note, f"{date.fromisoformat(note.day):%b %d}", lambda n: (self.pick(date.fromisoformat(n.day)), self.edit(n))))
         day_notes = [note for note in notes if note.day == self.selected.isoformat()]
         for note in day_notes:
             self.list.add(self.row(note, note.time or "all day", self.edit))
+        day_notes += carried
         if not day_notes:
             self.list.add(text("No notes for this day", "dayline-empty", xalign=0))
         undated = [note for note in notes if not note.day]
@@ -469,6 +476,7 @@ class DaylineWindow(PopupWindow):
         row.connect_after("map", lambda *_: [button.get_event_window().raise_() for button in inner if button.get_event_window()])
         flag(row, "past", bool(note.when and note.when <= self.now) or bool(note.day and date.fromisoformat(note.day) < self.today))
         flag(row, "done", bool(note.done))
+        flag(row, "overdue", note.overdue(self.now))
         flag(row, "editing", bool(self.editing and self.editing.id == note.id))
         return row
 
