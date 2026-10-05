@@ -15,6 +15,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from modules.calendar import CalendarWindow
 from modules.claude import ClaudeWindow, claude_slot
+from modules.display import DisplayWindow
 from modules.network import NetworkWindow
 from modules.sound import SoundWindow
 from modules.sysmon import SystemMonitorWindow
@@ -161,6 +162,7 @@ class Bar(MonitorWindow):
         claude_usage: JsonState,
         claude_panel: ClaudeWindow,
         backlight: BacklightState,
+        display: DisplayWindow,
     ):
         temp = text("0°", "value")
         temp_stat = stat("󰔏", temp)
@@ -270,11 +272,13 @@ class Bar(MonitorWindow):
 
         brightness_scale.connect("value-changed", drag_brightness)
         brightness_revealer = slide(brightness_scale, "left")
+        brightness_stat = Box(spacing=7, style_classes=("stat",), children=[brightness_revealer, brightness_icon, brightness_label])
         brightness_widget = hover_reveal(
-            Box(spacing=7, style_classes=("stat",), children=[brightness_revealer, brightness_icon, brightness_label]),
+            brightness_stat,
             brightness_revealer,
-            events=("scroll",),
+            events=("scroll", "button-press"),
             on_scroll_event=lambda _widget, event: backlight.set((backlight.value or 0) + (5 if scroll_up(event) else -5)) or True,
+            on_button_press_event=lambda _widget, event: display.toggle_at(brightness_stat) or True if event.button == 1 else False,
         )
 
         right = island(
@@ -375,9 +379,10 @@ def build(context: Any) -> list[Any]:
             context.claude,
             claude_panel,
             context.backlight,
+            display,
         )
-        for monitor, calendar, sysmon, sound, network_panel, claude_panel in zip(
-            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels
+        for monitor, calendar, sysmon, sound, network_panel, claude_panel, display in zip(
+            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels, context.displays
         )
     ]
     return context.bars

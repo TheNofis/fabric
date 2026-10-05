@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import signal
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from typing import Any
 
 import gi
@@ -15,6 +18,7 @@ from gi.repository import GLib
 from fabric import Application
 
 from modules import dayline as dayline_module
+from modules import display as display_module
 from modules import bar as bar_module
 from modules import calendar as calendar_module
 from modules import claude as claude_module
@@ -64,6 +68,7 @@ class Shell:
                 ModuleSpec("sound", sound_module.build),
                 ModuleSpec("network", network_module.build),
                 ModuleSpec("claude", claude_module.build),
+                ModuleSpec("display", display_module.build),
                 ModuleSpec("bar", bar_module.build),
                 ModuleSpec("music", music_module.build),
                 ModuleSpec("volume_osd", volume_osd_module.build),
@@ -80,6 +85,7 @@ class Shell:
         self.sounds: list[sound_module.SoundWindow] = []
         self.network_panels: list[network_module.NetworkWindow] = []
         self.claude_panels: list[claude_module.ClaudeWindow] = []
+        self.displays: list[display_module.DisplayWindow] = []
         self.bars: list[Bar] = []
         self.music_window: MusicWindow | None = None
         self.volume_osd: VolumeOSD | None = None
@@ -233,6 +239,28 @@ def self_check() -> None:
     assert claude_module.current({"pct": 40, "resets": 1000}, 400) == (40, 600) and claude_module.current({"pct": 40, "resets": 1000}, 1000) == (0, 0)
     assert [claude_module.duration(s) for s in (1, 2700, 8040, 108000)] == ["1m", "45m", "2h 14m", "1d 6h"]
     assert [claude_module.level({"severity": s}, p) for s, p in (("normal", 36), ("warning", 80), ("warning", 0), ("normal", 100), ("critical", 95))] == ["", "warn", "", "alert", "alert"]
+    from services.display import DisplayState, ramp, whitepoint
+    assert whitepoint(6500) == (1.0, 1.0, 1.0) and whitepoint(3400)[2] < whitepoint(3400)[1] < 1.0
+    red, green, blue = ramp(256, 100, 100, 6500)
+    assert red == green == blue and red[0] == 0 and red[-1] == 65535 and red[128] == round(128 / 255 * 65535)
+    assert ramp(3, 50, 100, 6500)[0] == [16384, 32768, 49151] and ramp(3, 150, 100, 6500)[0] == [0, 32768, 65535]
+    assert ramp(3, 100, 200, 6500)[0][1] == round(0.5 ** 0.5 * 65535)
+    with TemporaryDirectory() as directory, patch("services.display.set_gamma") as set_gamma:  # never touch the real screen
+        light = State(60)
+        light.set = light.emit
+        store = DisplayState(light, Path(directory) / "display.json")
+        store.adjust(warmth=4000, contrast=999)
+        assert store.value["settings"] == {"contrast": 150, "gamma": 100, "warmth": 4000}
+        store.store(" Mine ")
+        assert store.value["active"] == "Mine" and store.preset("Mine")["brightness"] == 60 and not store.modified()
+        light.emit(30)
+        assert store.modified()
+        store.apply("Mine")
+        assert light.value == 60 and not store.modified()
+        store.delete("Mine")
+        assert store.value["active"] == "" and store.preset("Mine") is None
+        assert DisplayState(light, Path(directory) / "display.json").value == store.value  # reloaded from disk
+        assert set_gamma.call_args.kwargs == {"contrast": 150, "gamma": 100, "warmth": 4000}
     print("config self-check: ok")
 
 

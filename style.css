@@ -231,6 +231,24 @@ tooltip {
 .sound-settings { color: @muted; font-size: 12px; padding: 6px 8px; margin: -8px -8px 0; border-radius: 8px; }
 .sound-settings:hover { color: @fg; background-color: alpha(@fg, 0.06); }
 
+/* Display panel: sound's sliders. Brightness is an amount (white fill); contrast, gamma and warmth
+   are positions around neutral, so they show only the knob. The warmth track is the one colored
+   element, because there the color is the value. Preset rows are sound's device rows. */
+.display-label { color: @muted; font-size: 11px; }
+.display-value { color: @fg; font-size: 11px; font-weight: 500; }
+.display-edited { margin-top: 10px; }
+.display-link { color: @muted; padding: 1px 8px; margin-right: -8px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.display-link:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.display-warmth trough { background-image: linear-gradient(to right, alpha(#FF9F0A, 0.75), alpha(white, 0.18)); }
+.display-delete { color: transparent; min-width: 22px; border-radius: 6px; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.ui-row:hover .display-delete { color: @muted; }
+.ui-row .display-delete:hover { color: @critical; background-color: alpha(@critical, 0.14); }
+.ui-panel .display-form { min-width: 0; margin: 8px -8px 0; padding: 4px 4px 4px 14px; }
+.display-name, .display-save label, .display-link label { font-size: 12px; }
+.display-delete label { font-size: 13px; }
+.display-save { margin-top: 0; padding: 4px 14px; }
+.display-save:disabled { background-color: alpha(@fg, 0.08); color: alpha(@fg, 0.40); }
+
 /* Network panel: sound's rows; the connected network carries the fill and the accent check.
    Signal and lock glyphs stay neutral: strength is shape, not color. The switch is the only
    accent fill, and only while Wi-Fi is on. */

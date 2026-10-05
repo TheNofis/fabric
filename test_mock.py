@@ -30,6 +30,11 @@ with patch("gi.repository.GLib.spawn_async", side_effect=AssertionError("system 
     light = BacklightState()
     light.set(500)
     assert light.value == 100
+    from services.display import DisplayState
+    display = DisplayState(light, Path("/nonexistent/display.json"))
+    display.store("Demo")
+    display.apply("Night")
+    assert light.value == 25 and display.value["active"] == "Night"
     run("systemctl", "poweroff")
     copy_text("demo")
     config.network_module.nmcli(["radio", "wifi", "off"], lambda ok, error: None)
