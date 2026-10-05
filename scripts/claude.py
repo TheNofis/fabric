@@ -50,7 +50,7 @@ def poll() -> dict:
     request = urllib.request.Request(URL, headers={
         "Authorization": f"Bearer {oauth['accessToken']}",
         "anthropic-beta": "oauth-2025-04-20",
-        "User-Agent": "fabric-bar",
+        "User-Agent": "claude-code/2.1.283",  # the endpoint 429s any other client
     })
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
