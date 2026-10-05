@@ -200,11 +200,12 @@ class NotificationHub:
             self.popup_window.show_all()  # a handful of popups, cheap
             self.deadlines[record.id] = (time.monotonic() + timeout / 1000, timeout / 1000)
             if not self.progress_timer:
-                self.progress_timer = GLib.timeout_add(100, self.tick_progress)
+                # frame clock, not a fixed timer: the bar moves once per vsync instead of stepping
+                self.progress_timer = self.popup_window.add_tick_callback(lambda *_: self.tick_progress())
         self.timers[record.id] = GLib.timeout_add(timeout, self.expire, record.id)
 
     def tick_progress(self) -> bool:
-        # one shared timer for all popups; stops itself when the stack is empty
+        # one shared frame callback for all popups; stops itself when the stack is empty
         if not self.deadlines:
             self.progress_timer = 0
             return False
