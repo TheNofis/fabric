@@ -281,6 +281,9 @@ tooltip {
 .music-disc-icon { color: @muted; font-size: 22px; }
 .music-cover { min-width: 48px; min-height: 48px; border-radius: 10px; }
 .music-popup-kicker { color: @muted; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+.music-source { min-height: 0; padding: 0 6px; border-radius: 999px; color: @muted; background-color: alpha(@fg, 0.08); }
+.music-source label { font-size: 10px; font-weight: 600; }
+.music-source:hover { color: @fg; }
 .music-popup-title { color: @fg; font-size: 15px; font-weight: 600; }
 .music-popup-artist { color: @muted; font-size: 12px; }
 .music-close, .music-button { min-width: 24px; min-height: 24px; border-radius: 999px; color: @fg; }

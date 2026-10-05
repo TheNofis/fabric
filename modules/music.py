@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import time
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote, urlparse
@@ -23,8 +25,26 @@ def local_art_path(value: str) -> str | None:
     if value.startswith("file://"):
         value = unquote(urlparse(value).path)
     if value.startswith("/") and Path(value).is_file():
-        return value
+        return bluez_cover(value)
     return None
+
+
+def bluez_cover(path: str) -> str:
+    """bluez pulls the iPhone's cover twice per track; the second pull is iOS's grey placeholder.
+    Take the real one: the previous /tmp/sessionN-M file, fetched within the same second."""
+    match = re.fullmatch(r"(/tmp/session\d+-)(\d+)", path)
+    if not match:
+        return path
+    first = f"{match[1]}{int(match[2]) - 1}"
+    try:
+        return first if os.stat(path).st_mtime - os.stat(first).st_mtime < 1 else path
+    except OSError:
+        return path
+
+
+def clock(us: int) -> str:
+    seconds = us // 1_000_000
+    return f"{seconds // 60}:{seconds % 60:02d}"
 
 
 class MusicWindow(PopupWindow):
@@ -32,6 +52,9 @@ class MusicWindow(PopupWindow):
         self.status = text("Stopped", "music-popup-kicker", xalign=0)
         self.track = text("No media player", "music-popup-title", xalign=0)
         self.artist = text("Start a player to see track details", "music-popup-artist", xalign=0)
+        # which player the popup drives; click hands off to the next one (PC <-> iPhone)
+        self.source = Button(style_classes=("music-source",), tooltip_text="Switch player", visible=False)
+        self.source.set_no_show_all(True)  # update() owns its visibility
         self.play = Button(label="󰐊", style_classes=("music-button", "music-main", "music-control-icon"))
         self.progress = Gtk.ProgressBar()
         css(self.progress, "music-progress")
@@ -42,6 +65,7 @@ class MusicWindow(PopupWindow):
         for art_widget in (self.note, self.cover):
             art_widget.set_no_show_all(True)  # set_art() owns their visibility
         self.art_key: tuple[str, float] | None = None
+        self.anchor: tuple[str, int, float] = ("", 0, 0.0)  # (title, reported position µs, when)
         for label in (self.track, self.artist):
             # max_width_chars caps the natural width so long titles ellipsize
             # inside the fixed popup instead of widening the window.
@@ -52,6 +76,7 @@ class MusicWindow(PopupWindow):
             return lambda *_: run(str(SCRIPTS / "music.sh"), action)
 
         self.play.connect("clicked", control("play-pause"))
+        self.source.connect("clicked", control("switch"))
         popup = Box(
             orientation="v",
             spacing=14,
@@ -66,7 +91,7 @@ class MusicWindow(PopupWindow):
                             orientation="v",
                             spacing=2,
                             h_expand=True,
-                            children=[self.status, self.track, self.artist],
+                            children=[Box(spacing=6, children=[self.status, self.source]), self.track, self.artist],
                         ),
                         Button(label="×", style_classes=("music-close",), on_clicked=lambda *_: self.hide()),
                     ],
@@ -108,21 +133,34 @@ class MusicWindow(PopupWindow):
         self.clip_to(16, popup)
         # music.sh polls MPRIS every second; only run it while the popup is shown.
         self.connect("show", lambda *_: music.start())
+        # State drops repeats, and the iPhone's frozen position repeats; redraw the local clock ourselves.
+        self.connect("show", lambda *_: GLib.timeout_add_seconds(1, lambda: self.get_visible() and (self.update(music.value) or True)))
         self.connect("hide", lambda *_: music.stop())
         music.subscribe(self.update)
 
     def update(self, value: dict[str, Any]) -> None:
         status = str(value.get("status", "Stopped"))
         self.status.set_text("NOW PLAYING" if status == "Playing" else status.upper())
+        source = str(value.get("source", ""))
+        self.source.set_label(f"{'󰄜' if value.get('phone') else '󰍹'} {source}" + (" 󰓡" if int(value.get("players", 0)) > 1 else ""))
+        self.source.set_sensitive(int(value.get("players", 0)) > 1)
+        self.source.set_visible(bool(source))
         self.track.set_text(str(value.get("title", "Unknown track")))
         self.track.set_tooltip_text(self.track.get_text())
         self.artist.set_text(str(value.get("artist", "Unknown artist")))
         self.set_art(local_art_path(str(value.get("art", ""))))
         self.play.set_label("󰏤" if status == "Playing" else "󰐊")
         length = max(int(value.get("length", 1)), 1)
-        self.progress.set_fraction(min(max(int(value.get("position", 0)) / length, 0), 1))
-        self.elapsed.set_text(str(value.get("elapsed", "0:00")))
+        position = self.position(str(value.get("title", "")), int(value.get("position", 0)), status == "Playing")
+        self.progress.set_fraction(min(max(position / length, 0), 1))
+        self.elapsed.set_text(clock(min(position, length)) if position != int(value.get("position", 0)) else str(value.get("elapsed", "0:00")))
         self.duration.set_text(str(value.get("duration", "0:00")))
+
+    def position(self, title: str, reported: int, playing: bool) -> int:
+        """The iPhone (AVRCP) reports position only on play/pause/seek; run the clock locally in between."""
+        if (title, reported) != self.anchor[:2]:
+            self.anchor = (title, reported, time.monotonic())
+        return reported + int((time.monotonic() - self.anchor[2]) * 1_000_000) if playing else reported
 
     def set_art(self, art: str | None) -> None:
         # update() runs every second (position); decode the cover only when it changes.

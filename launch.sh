@@ -17,5 +17,8 @@ if pkill -u "$(id -u)" -f "$pattern"; then
   pkill -KILL -u "$(id -u)" -f "$pattern" 2>/dev/null || true
 fi
 
+# bridges Bluetooth sources (iPhone over AVRCP) onto MPRIS for the music popup
+pgrep -u "$(id -u)" -x mpris-proxy >/dev/null || setsid -f mpris-proxy >/dev/null 2>&1
+
 export GDK_BACKEND=x11
 exec "$python" "$root/config.py"
