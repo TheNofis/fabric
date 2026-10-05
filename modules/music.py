@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import re
-import time
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote, urlparse
@@ -42,11 +41,6 @@ def bluez_cover(path: str) -> str:
         return path
 
 
-def clock(us: int) -> str:
-    seconds = us // 1_000_000
-    return f"{seconds // 60}:{seconds % 60:02d}"
-
-
 class MusicWindow(PopupWindow):
     def __init__(self, monitor: Monitor, music: JsonState):
         self.status = text("Stopped", "music-popup-kicker", xalign=0)
@@ -65,7 +59,6 @@ class MusicWindow(PopupWindow):
         for art_widget in (self.note, self.cover):
             art_widget.set_no_show_all(True)  # set_art() owns their visibility
         self.art_key: tuple[str, float] | None = None
-        self.anchor: tuple[str, int, float] = ("", 0, 0.0)  # (title, reported position µs, when)
         for label in (self.track, self.artist):
             # max_width_chars caps the natural width so long titles ellipsize
             # inside the fixed popup instead of widening the window.
@@ -133,8 +126,6 @@ class MusicWindow(PopupWindow):
         self.clip_to(16, popup)
         # music.sh polls MPRIS every second; only run it while the popup is shown.
         self.connect("show", lambda *_: music.start())
-        # State drops repeats, and the iPhone's frozen position repeats; redraw the local clock ourselves.
-        self.connect("show", lambda *_: GLib.timeout_add_seconds(1, lambda: self.get_visible() and (self.update(music.value) or True)))
         self.connect("hide", lambda *_: music.stop())
         music.subscribe(self.update)
 
@@ -151,16 +142,9 @@ class MusicWindow(PopupWindow):
         self.set_art(local_art_path(str(value.get("art", ""))))
         self.play.set_label("󰏤" if status == "Playing" else "󰐊")
         length = max(int(value.get("length", 1)), 1)
-        position = self.position(str(value.get("title", "")), int(value.get("position", 0)), status == "Playing")
-        self.progress.set_fraction(min(max(position / length, 0), 1))
-        self.elapsed.set_text(clock(min(position, length)) if position != int(value.get("position", 0)) else str(value.get("elapsed", "0:00")))
+        self.progress.set_fraction(min(max(int(value.get("position", 0)) / length, 0), 1))
+        self.elapsed.set_text(str(value.get("elapsed", "0:00")))
         self.duration.set_text(str(value.get("duration", "0:00")))
-
-    def position(self, title: str, reported: int, playing: bool) -> int:
-        """The iPhone (AVRCP) reports position only on play/pause/seek; run the clock locally in between."""
-        if (title, reported) != self.anchor[:2]:
-            self.anchor = (title, reported, time.monotonic())
-        return reported + int((time.monotonic() - self.anchor[2]) * 1_000_000) if playing else reported
 
     def set_art(self, art: str | None) -> None:
         # update() runs every second (position); decode the cover only when it changes.
