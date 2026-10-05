@@ -138,8 +138,9 @@ class Notes(State):
                 Note(3, (today + timedelta(days=1)).isoformat(), "", "Team demo", flagged=True, list_id="mock"),
                 Note(5, (today - timedelta(days=2)).isoformat(), "", "Renew the domain", priority=1, list_id="mock"),
                 Note(4, "", "", "Ideas for the next iteration", desc="Keep the bar quiet and useful", list_id="mock"),
+                Note(6, today.isoformat(), "16:00", "Sprint review", list_id="work"),
             ]
-            self.lists = [["mock", "Personal", "#4A90E2"]]
+            self.lists = [["mock", "Personal", "#4A90E2"], ["work", "Work", "#FF9500"]]
             self.list = "mock"
             self.cursor = "mock"
             self.on_change: Callable[[], None] = lambda: None

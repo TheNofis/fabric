@@ -29,6 +29,7 @@ from shared.window import PopupWindow
 
 PRIORITY_MARK = {9: "!", 5: "!!", 1: "!!!"}  # Apple: 9 low, 5 medium, 1 high
 PRIORITY_CYCLE = [0, 9, 5, 1]
+ALL = "*"  # the tab that shows every list at once
 
 
 def relative(day: date, today: date) -> str:
@@ -234,14 +235,24 @@ class DaylineWindow(PopupWindow):
     def list_ids(self) -> list[str]:
         return [item[0] for item in self.notes.lists]
 
+    def tab_ids(self) -> list[str]:
+        """The tabs in order: All first once there is more than one list."""
+        ids = self.list_ids()
+        return [ALL, *ids] if len(ids) > 1 else ids
+
+    @property
+    def home(self) -> str:
+        """The list new notes go to by default: the tab's own, or the default list under All."""
+        return self.notes.list if self.tab == ALL else self.tab
+
     def show_tab(self, list_id: str) -> None:
         self.tab = list_id
         if not self.editing:
-            self.target = list_id
+            self.target = self.home
         self.render()
 
     def switch_tab(self, shift: int) -> None:
-        ids = self.list_ids()
+        ids = self.tab_ids()
         if ids:
             self.show_tab(ids[(ids.index(self.tab) + shift) % len(ids) if self.tab in ids else 0])
 
@@ -253,7 +264,7 @@ class DaylineWindow(PopupWindow):
 
     def shown(self) -> list[Note]:
         """The visible notes of the list on screen."""
-        return [note for note in self.notes.value if not self.tab or note.list_id == self.tab]
+        return [note for note in self.notes.value if self.tab in ("", ALL) or note.list_id == self.tab]
 
     # composer
 
@@ -323,7 +334,7 @@ class DaylineWindow(PopupWindow):
     def edit(self, note: Note) -> None:
         self.editing = note
         self.undated = not note.day
-        self.target, self.priority = note.list_id or self.tab, note.priority
+        self.target, self.priority = note.list_id or self.home, note.priority
         self.entry.set_text(note.text)
         self.time.set_text(note.time)
         self.desc.set_text(note.desc)
@@ -333,7 +344,7 @@ class DaylineWindow(PopupWindow):
 
     def cancel_edit(self) -> None:
         self.editing = None
-        self.target, self.priority = self.tab, 0
+        self.target, self.priority = self.home, 0
         for entry in (self.entry, self.time, self.desc):
             entry.set_text("")
         self.render()
@@ -347,9 +358,10 @@ class DaylineWindow(PopupWindow):
 
     def render(self) -> None:
         ids = self.list_ids()
-        if ids and self.tab not in ids:
+        if ids and self.tab not in self.tab_ids():
             self.tab = self.notes.list if self.notes.list in ids else ids[0]
-            self.target = self.target if self.target in ids else self.tab
+        if ids and self.target not in ids:
+            self.target = self.home if self.home in ids else ids[0]
         self.render_tabs()
         notes = self.shown()
 
@@ -410,8 +422,8 @@ class DaylineWindow(PopupWindow):
             self.shown_lists = [list(item) for item in self.notes.lists]
             for child in self.tabs.get_children():
                 child.destroy()
-            for list_id, title, color in self.notes.lists:
-                tab = Button(style_classes=("dayline-tab",), child=Box(spacing=6, children=[list_dot(color), text(title)]),
+            for list_id, title, color in ([[ALL, "All", ""]] if len(self.notes.lists) > 1 else []) + self.notes.lists:
+                tab = Button(style_classes=("dayline-tab",), child=Box(spacing=6, children=[*([] if list_id == ALL else [list_dot(color)]), text(title)]),
                              on_clicked=lambda *_, i=list_id: self.show_tab(i))
                 tab.set_can_focus(False)
                 tab.list_id = list_id
@@ -448,6 +460,8 @@ class DaylineWindow(PopupWindow):
             marks.append(text("󰈻", "dayline-mark-flag"))
         if note.repeat:
             marks.append(text("󰑖", "dayline-mark-repeat"))
+        if self.tab == ALL:  # under All the note carries its list's color, so the lists stay apart
+            marks.append(list_dot(next((color for list_id, _, color in self.notes.lists if list_id == note.list_id), "")))
         body = [note_text(note.text, wide)]
         if note.desc and not wide:
             body.append(note_text(note.desc, True, "dayline-desc"))
