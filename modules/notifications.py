@@ -78,6 +78,23 @@ def body_image(body: str) -> tuple[str, GdkPixbuf.Pixbuf | None]:
         return body, None
 
 
+LINK = re.compile(r"</?a\b[^>]*>", re.I)
+URL = re.compile(r"""https?://[^\s<>"]*[^\s<>".,;:!?)\]]""")
+
+
+def body_markup(body: str) -> str:
+    # body-markup + body-hyperlinks: GtkLabel renders <a href> but Pango's parser rejects it,
+    # so validate without the links; broken markup falls back to escaped text
+    body = re.sub(r"&(?!#?\w+;)", "&amp;", body)  # senders often leave a bare & (URLs, "Tom & Jerry")
+    try:
+        Pango.parse_markup(LINK.sub("", body), -1, "\0")
+        markup = body
+    except GLib.Error:
+        markup = GLib.markup_escape_text(body)
+    # bare URLs in plain text become links too, unless the sender already marked them up
+    return markup if LINK.search(markup) else URL.sub(lambda m: f'<a href="{m[0]}">{m[0]}</a>', markup)
+
+
 class NotificationCard(EventBox):
     def __init__(
         self,
@@ -93,12 +110,7 @@ class NotificationCard(EventBox):
             progress.set_no_show_all(True)
         title = text(record.title, "notification-title", xalign=0)
         body = text("", "notification-body", xalign=0)
-        # we advertise body-markup: render it, but fall back to plain text on broken markup
-        try:
-            Pango.parse_markup(record.body, -1, "\0")
-            body.set_markup(record.body)
-        except GLib.Error:
-            body.set_text(record.body)
+        body.set_markup(body_markup(record.body))
         title.set_line_wrap(True)
         title.set_max_width_chars(32)
         body.set_line_wrap(True)
