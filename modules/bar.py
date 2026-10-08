@@ -1,8 +1,8 @@
-"""Status bar: system stats, clock, workspaces, keyboard, network, brightness, volume."""
+"""Status bar: system stats, clock, workspaces, keyboard, network, brightness, volume, notifications."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
@@ -163,6 +163,7 @@ class Bar(MonitorWindow):
         claude_panel: ClaudeWindow,
         backlight: BacklightState,
         display: DisplayWindow,
+        notifications: Callable[[], Any],
     ):
         temp = text("0°", "value")
         temp_stat = stat("󰔏", temp)
@@ -187,7 +188,7 @@ class Bar(MonitorWindow):
         )
         left = island(stats, claude_slot(claude_usage, clock, claude_panel), clock_widget)
 
-        layout = text("us", "value")
+        layout = text("US", "value")
         caps = text("caps", "caps")
 
         net_detail = text("", "muted")
@@ -216,8 +217,9 @@ class Bar(MonitorWindow):
         )
 
         volume_label = text("0%", "value", "w-pct")
-        mute_button = Button(label="󰕾", style_classes=("icon", "bar-button"), tooltip_text="Toggle mute", on_clicked=toggle_mute)
-        volume_scale = slider("vol-slider", max_value=101, size=(88, -1))
+        volume_icon_label = text("󰕾", "icon")
+        # sliders stop at 100%; scroll and the i3 keys boost to 200%, shown as .warn
+        volume_scale = slider("vol-slider", size=(88, -1))
         syncing = {"value": False}
         pending = {"source": 0}
 
@@ -225,7 +227,7 @@ class Bar(MonitorWindow):
         # always with the latest slider position.
         def apply_volume() -> bool:
             pending["source"] = 0
-            run("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{min(int(volume_scale.value), 100)}%")
+            run("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(volume_scale.value)}%")
             return False
 
         def set_volume(_scale: Scale) -> None:
@@ -237,7 +239,7 @@ class Bar(MonitorWindow):
         volume_stat = Box(
             spacing=7,
             style_classes=("stat",),
-            children=[volume_revealer, mute_button, volume_label],
+            children=[volume_revealer, volume_icon_label, volume_label],
         )
 
         def scroll_volume(_widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
@@ -252,8 +254,10 @@ class Bar(MonitorWindow):
             on_scroll_event=scroll_volume,
             on_button_press_event=lambda _widget, event: (
                 sound.toggle_at(volume_stat) or True if event.button == 1
+                else toggle_mute() or True if event.button == 2
                 else run("pavucontrol") or True if event.button == 3 else False
             ),
+            tooltip_text="Middle-click to mute",
         )
         brightness_label = text("0%", "value", "w-pct")
         brightness_icon = text("󰃠", "icon")
@@ -281,12 +285,32 @@ class Bar(MonitorWindow):
             on_button_press_event=lambda _widget, event: display.toggle_at(brightness_stat) or True if event.button == 1 else False,
         )
 
+        bell_label = text("󰂚", "icon")
+        bell = Button(
+            child=bell_label,
+            style_classes=("bar-button",),
+            tooltip_text="Notifications",
+            on_clicked=lambda *_: notifications() and notifications().toggle_center(),
+        )
+
+        def refresh_bell(*_: Any) -> bool:
+            bell_label.set_text("󰂛" if getattr(notifications(), "dnd", False) else "󰂚")
+            return False
+
+        def attach_bell() -> bool:
+            # the hub is built after the bar; DnD only changes inside the center, so re-read on close
+            center = getattr(notifications(), "center_window", None)
+            if center is not None:
+                center.connect("hide", refresh_bell)
+            return refresh_bell()
+
         right = island(
             Tray(),
             stat("󰌌", layout, caps),
             network_widget,
             brightness_widget,
             volume_widget,
+            bell,
         )
 
         workspaces_view = WorkspacesView(monitor.name, workspaces)
@@ -317,9 +341,10 @@ class Bar(MonitorWindow):
         def update_audio(value: dict[str, Any]) -> None:
             muted = bool(value.get("muted"))
             volume = int(value.get("vol", 0))
-            mute_button.set_label(volume_icon(volume, muted))
+            volume_icon_label.set_text(volume_icon(volume, muted))
             volume_label.set_text(volume_text(volume, muted))
             flag(volume_stat, "alert", muted)
+            flag(volume_stat, "warn", volume > 100 and not muted)
             if pending["source"]:
                 return  # user is dragging; don't yank the slider back to a stale value
             syncing["value"] = True
@@ -349,7 +374,7 @@ class Bar(MonitorWindow):
             brightness_syncing["value"] = False
 
         def update_keyboard(value: dict[str, Any]) -> None:
-            layout.set_text(str(value.get("layout", "us")))
+            layout.set_text(str(value.get("layout", "us")).upper())
             caps.set_visible(bool(value.get("caps")))
 
         self.clip_to(12, left, workspaces_view.row, right)
@@ -360,6 +385,7 @@ class Bar(MonitorWindow):
         network.subscribe(update_network)
         keyboard.subscribe(update_keyboard)
         backlight.subscribe(update_brightness)
+        GLib.idle_add(attach_bell)
 
 
 def build(context: Any) -> list[Any]:
@@ -380,6 +406,7 @@ def build(context: Any) -> list[Any]:
             claude_panel,
             context.backlight,
             display,
+            lambda: context.notifications,
         )
         for monitor, calendar, sysmon, sound, network_panel, claude_panel, display in zip(
             context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels, context.displays

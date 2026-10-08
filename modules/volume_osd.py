@@ -5,27 +5,23 @@ from __future__ import annotations
 from typing import Any
 
 from fabric.widgets.box import Box
-from fabric.widgets.button import Button
 from gi.repository import GLib
 
 from services.monitors import Monitor
 from services.system import KeyboardState
 from services.state import JsonState
 from shared.constants import CONTENT_GAP
-from shared.ui import slider
-from shared.widgets import flag, text, toggle_mute, volume_icon, volume_text
+from shared.ui import meter
+from shared.widgets import flag, text, volume_icon, volume_text
 from shared.window import OverlayWindow
 
 
 class VolumeOSD(OverlayWindow):
     def __init__(self, monitor: Monitor, audio: JsonState, keyboard: KeyboardState):
-        self.icon = Button(
-            label="󰕾",
-            style_classes=("volume-osd-icon", "volume-osd-glyph"),
-            on_clicked=toggle_mute,
-        )
+        # an indicator only: the window never takes focus and closes after 1.5s
+        self.icon = text("󰕾", "volume-osd-icon", "volume-osd-glyph")
         self.percent = text("0%", "volume-osd-percent")
-        self.scale = slider("volume-osd-slider", max_value=101)
+        self.scale = meter("volume-osd-meter")
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
         self.caps = text("󰪛", "volume-osd-percent", "layout-osd-caps")
@@ -53,7 +49,7 @@ class VolumeOSD(OverlayWindow):
             size=(230, 58),
             child=body,
         )
-        self.clip_to(18, body)
+        self.clip_to(22, body)
         audio.subscribe(self.update)
         keyboard.subscribe(self.update_layout)
 
@@ -62,7 +58,9 @@ class VolumeOSD(OverlayWindow):
         volume = int(value.get("vol", 0))
         self.icon.set_label(volume_icon(volume, muted))
         self.percent.set_text(volume_text(volume, muted))
-        self.scale.value = volume
+        self.scale.set_fraction(min(volume, 100) / 100)
+        flag(self.scale, "dim", muted)
+        flag(self.scale, "warn", volume > 100 and not muted)  # boost past 100% (i3 keys cap at 200%)
 
     def update_layout(self, value: dict[str, Any]) -> None:
         layout = value.get("layout")
@@ -81,7 +79,7 @@ class VolumeOSD(OverlayWindow):
             GLib.source_remove(self.timer)
         self.show_all()
         (self.layout_row if row is self.volume_row else self.volume_row).hide()
-        self.timer = GLib.timeout_add(1000, self.close_timer)
+        self.timer = GLib.timeout_add(1500, self.close_timer)
 
     def close_timer(self) -> bool:
         self.timer = 0

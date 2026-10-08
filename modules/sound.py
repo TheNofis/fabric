@@ -88,6 +88,7 @@ class Channel(Box):
         volume, muted = current["volume"], current["muted"]
         self.big.set_markup("Muted" if muted else amount(volume, "%"))
         flag(self.big, "dim", muted)
+        flag(self.big, "warn", volume > 100 and not muted)  # boost from scroll / i3 keys, slider stops at 100
         icon = ("󰖁" if muted else "󰕾") if self.output else ("󰍭" if muted else "󰍬")
         self.mute.set_label(icon)
         self.mute.set_tooltip_text("Unmute" if muted else "Mute")
