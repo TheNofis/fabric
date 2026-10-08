@@ -72,10 +72,10 @@ tooltip {
 .ws.urgent { color: white; background-color: @critical_fill; }
 
 /* Sliders: white fill like Control Center; accent is reserved for selection and focus. */
-.vol-slider { margin-right: 4px; }
-.vol-slider trough { min-width: 88px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
-.vol-slider highlight { background-color: @fg; border-radius: 2px; }
-.vol-slider slider { min-width: 12px; min-height: 12px; margin: -4px 0; border-radius: 6px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
+.vol-slider { margin: 0 4px 0 0; }
+.vol-slider trough { min-width: 88px; }
+.vol-slider highlight { background-color: @fg; }
+.vol-slider slider { min-width: 12px; min-height: 12px; margin: -4px 0; }
 
 .popup {
   border: 1px solid @border;
@@ -238,11 +238,6 @@ tooltip {
 .sound-mute { color: @icon; font-size: 16px; min-width: 30px; min-height: 30px; border-radius: 999px; background-color: alpha(@fg, 0.08); transition: background-color 150ms ease-out; }
 .sound-mute:hover { background-color: alpha(@fg, 0.14); }
 .sound-mute.active { color: @bg; background-color: @fg; }
-.sound-slider { margin: 2px 0 4px; }
-.sound-slider trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
-.sound-slider highlight { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
-.sound-slider slider { min-width: 14px; min-height: 14px; margin: -5px 0; border-radius: 7px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
-.sound-slider.dim highlight { background-color: alpha(@fg, 0.30); }
 .sound-settings { color: @muted; font-size: 12px; padding: 6px 8px; margin: -8px -8px 0; border-radius: 8px; }
 .sound-settings:hover { color: @fg; background-color: alpha(@fg, 0.06); }
 
@@ -279,10 +274,6 @@ tooltip {
 .net-more:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .net-more label { font-size: 13px; }
 .net-form { margin: 0 -8px; }
-.net-switch { min-width: 36px; min-height: 20px; border-radius: 999px; background-color: alpha(white, 0.18); transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1); }
-.net-switch:checked { background-color: @accent_fill; }
-.net-switch image { color: transparent; -gtk-icon-source: none; }
-.net-switch slider { min-width: 16px; min-height: 16px; margin: 2px; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.35); }
 
 .music-popup {
   border: 1px solid @border;

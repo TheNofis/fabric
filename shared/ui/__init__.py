@@ -14,7 +14,7 @@ Components:
     button(label, on_clicked, primary=)  buttons.py  dialog/form button; primary = accent fill
     nav_button(glyph, on_clicked)        buttons.py  month arrow, not focusable
     switch(on_change, *classes)          controls.py on/off toggle (Gtk.Switch, already shown)
-    slider(*classes, max_value=100)      controls.py volume-style Scale from 0
+    slider(*classes, max_value=100)      controls.py volume-style Scale from 0; flag "dim" when muted
     meter(*classes)                      controls.py usage bar (Gtk.ProgressBar), "thin" for secondary;
                                                      flag "warn"/"alert" to tint it
     password_entry(on_activate)          inputs.py   masked Entry, Enter calls on_activate

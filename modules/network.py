@@ -84,7 +84,7 @@ class NetworkWindow(BarPanel):
         self.name.set_max_width_chars(18)
         self.detail = text("", "ui-detail", xalign=0)
 
-        self.switch = switch(self.on_radio, "net-switch")
+        self.switch = switch(self.on_radio)
         self.wifi_list = row_list()
         self.entry = password_entry(lambda: self.entry.get_text() and self.join(self.asking, self.entry.get_text()))
         self.password = password_field(self.entry, classes=("net-password",))

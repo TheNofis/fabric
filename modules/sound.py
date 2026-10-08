@@ -56,7 +56,7 @@ class Channel(Box):
 
         self.big = big_value()
         self.mute = Button(style_classes=("sound-mute",), on_clicked=lambda *_: run("pactl", f"set-{target}-mute", f"@DEFAULT_{target.upper()}@", "toggle"))
-        self.scale = slider("sound-slider")
+        self.scale = slider()
         self.scale.connect("value-changed", self.on_drag)
         self.list = row_list()
         super().__init__(

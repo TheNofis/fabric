@@ -50,7 +50,7 @@ class DisplayWindow(BarPanel):
         for key in LIMITS:
             low, high = LIMITS[key]
             scale = Scale(min_value=low, max_value=high, increments=(100 if key == "warmth" else 1, 10), digits=0,
-                          has_origin=key == "brightness", h_expand=True, style_classes=("sound-slider", f"display-{key}"))
+                          has_origin=key == "brightness", h_expand=True, style_classes=("ui-slider", f"display-{key}"))
             scale.connect("value-changed", self.on_drag)
             self.scales[key] = scale
             self.values[key] = text("", "display-value")

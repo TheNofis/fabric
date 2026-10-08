@@ -44,6 +44,23 @@
 .ui-nav-arrow:hover { background-color: alpha(@fg, 0.12); color: @fg; }
 .ui-nav:active { background-color: alpha(black, 0.25); }
 
+/* switch(): white knob on a quiet track; the accent fill is the on state */
+.ui-switch { min-width: 36px; min-height: 20px; border-radius: 999px; background-color: alpha(white, 0.18); -gtk-outline-radius: 999px; transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1); }
+.ui-switch:hover { background-color: alpha(white, 0.26); }
+.ui-switch:checked { background-color: @accent_fill; }
+.ui-switch:checked:hover { background-color: @accent; }
+.ui-switch:disabled { opacity: 0.4; }
+.ui-switch image { color: transparent; -gtk-icon-source: none; }
+.ui-switch slider { min-width: 16px; min-height: 16px; margin: 2px; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.35); }
+
+/* slider(): a meter with a knob; white fill, the knob lifts on hover; flag "dim" for muted */
+.ui-slider { margin: 2px 0 4px; }
+.ui-slider trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
+.ui-slider highlight { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
+.ui-slider slider { min-width: 14px; min-height: 14px; margin: -5px 0; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); transition: box-shadow 150ms ease-out; }
+.ui-slider slider:hover, .ui-slider slider:active { box-shadow: 0 1px 3px alpha(black, 0.4), 0 0 0 4px alpha(white, 0.14); }
+.ui-slider.dim highlight { background-color: alpha(@fg, 0.30); }
+
 /* password_field() / password_entry(): the lock screen's pill */
 .ui-field { min-width: 300px; padding: 9px 18px; border-radius: 999px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.14); }
 .ui-field-icon { color: @muted; font-size: 15px; }

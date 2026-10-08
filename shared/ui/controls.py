@@ -13,7 +13,7 @@ from shared.widgets import css
 
 def switch(on_change: Callable[[Gtk.Switch, bool], bool], *classes: str) -> Gtk.Switch:
     """on_change(switch, active) -> True to keep the old state until the backend confirms."""
-    widget = css(Gtk.Switch(valign=Gtk.Align.CENTER), *classes)
+    widget = css(Gtk.Switch(valign=Gtk.Align.CENTER), "ui-switch", *classes)
     widget.connect("state-set", on_change)
     widget.show()  # plain Gtk widget: not visible by default like Fabric's
     return widget
@@ -21,7 +21,7 @@ def switch(on_change: Callable[[Gtk.Switch, bool], bool], *classes: str) -> Gtk.
 
 def slider(*classes: str, max_value: int = 100, **kwargs: Any) -> Scale:
     kwargs.setdefault("h_expand", "size" not in kwargs)
-    return Scale(min_value=0, max_value=max_value, style_classes=classes, **kwargs)
+    return Scale(min_value=0, max_value=max_value, style_classes=("ui-slider", *classes), **kwargs)
 
 
 def meter(*classes: str) -> Gtk.ProgressBar:
