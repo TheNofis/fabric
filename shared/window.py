@@ -125,6 +125,8 @@ class PopupWindow(MonitorWindow):
     """
 
     grabbed: list[PopupWindow] = []  # popups holding the grab, the current holder last
+    # False (password prompts): a click outside is swallowed and a lost grab is re-taken, only Esc/hotkey close
+    outside_click_closes = True
 
     def __init__(self, monitor: Monitor, dismissible: bool = False, hotkey: str | None = None, **kwargs: Any):
         super().__init__(monitor, **{"type": "popup", "type_hint": "dialog", "visible": False, **kwargs})
@@ -136,7 +138,7 @@ class PopupWindow(MonitorWindow):
             self.connect("button-press-event", self._on_button_press)
             self.connect("key-press-event", self._on_key_press)
             # grab_window is set when one of our own windows took the grab: stay open below it
-            self.connect("grab-broken-event", lambda _widget, event: event.grab_window is None and self.hide())
+            self.connect("grab-broken-event", self._on_grab_broken)
 
     def _seat(self) -> Gdk.Seat:
         return self.get_display().get_default_seat()
@@ -171,11 +173,17 @@ class PopupWindow(MonitorWindow):
                 below._grab()
                 below.take_focus()
 
+    def _on_grab_broken(self, _widget: Any, event: Gdk.EventGrabBroken) -> bool:
+        if event.grab_window is None:
+            self.hide() if self.outside_click_closes else GLib.timeout_add(100, self._grab)
+        return False
+
     def _on_button_press(self, _widget: Any, event: Gdk.EventButton) -> bool:
         x, y = self.get_window().get_origin()[1:]
         width, height = self.get_size()
         if not (x <= event.x_root < x + width and y <= event.y_root < y + height):
-            self.hide()
+            if self.outside_click_closes:
+                self.hide()
             return True
         return False
 

@@ -35,4 +35,15 @@ def list_row(icon: str, label: str, end: Gtk.Widget, *, classes: tuple[str, ...]
         button.connect("clicked", on_clicked)
     if on_menu is not None:
         button.connect("button-press-event", lambda _widget, event: event.button == 3 and (on_menu() or True))
+    button.connect_after("map", lambda *_: _lift(end))
     return button
+
+
+def _lift(widget: Gtk.Widget) -> None:
+    """GTK3 maps a button's input window above its children: raise the buttons inside `end`
+    (delete, options) back on top, or the row takes their clicks."""
+    if isinstance(widget, Gtk.Button) and widget.get_event_window():
+        widget.get_event_window().raise_()
+    if isinstance(widget, Gtk.Container):
+        for child in widget.get_children():
+            _lift(child)
