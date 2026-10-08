@@ -8,7 +8,7 @@ from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.entry import Entry
 from fabric.widgets.scale import Scale
-from gi.repository import GLib
+from gi.repository import Gdk, GLib
 
 from services.display import LIMITS, NEUTRAL, DisplayState
 from services.monitors import Monitor
@@ -144,10 +144,26 @@ class DisplayWindow(BarPanel):
         self.list.show_all()
 
     def row(self, name: str, brightness: int, selected: bool) -> Button:
+        # one click arms (red glyph), a second deletes; leaving the row or 3s disarms
         delete = Button(label="󰆴", style_classes=("display-delete",), tooltip_text=f"Delete {name}",
-                        on_clicked=lambda *_: self.state.delete(name))
+                        on_clicked=lambda *_: self.state.delete(name) if delete.get_style_context().has_class("armed") else arm(True))
         delete.set_can_focus(False)
-        return list_row(
+        timer = [0]
+
+        def arm(on: bool) -> bool:
+            if timer[0]:
+                GLib.source_remove(timer[0])
+            timer[0] = GLib.timeout_add_seconds(3, expire) if on else 0
+            flag(delete, "armed", on)
+            delete.set_tooltip_text("Click again to delete" if on else f"Delete {name}")
+            return False
+
+        def expire() -> bool:
+            timer[0] = 0
+            return arm(False)
+
+        delete.connect("destroy", lambda *_: timer[0] and GLib.source_remove(timer[0]))
+        row = list_row(
             sun(brightness),
             name,
             Box(spacing=6, children=[delete, check(selected)]),
@@ -155,6 +171,8 @@ class DisplayWindow(BarPanel):
             on_clicked=lambda *_: self.state.apply(name),
             tooltip=f"Apply {name}" if not selected else f"Restore {name}",
         )
+        row.connect("leave-notify-event", lambda _row, event: event.detail != Gdk.NotifyType.INFERIOR and arm(False))
+        return row
 
 
 def build(context: Any) -> list[Any]:

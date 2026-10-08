@@ -74,6 +74,7 @@ class NetworkWindow(BarPanel):
         self.pending = ""  # SSID or device being connected
         self.asking = ""  # secured SSID waiting for its password
         self.open = ""  # saved SSID with its options (disconnect, forget) shown
+        self.arming = ""  # SSID whose Forget was clicked once; the second click deletes it
         self.syncing = False
         self.shown: Any = None
         self.profiles: dict[str, list[str]] = {}
@@ -157,7 +158,7 @@ class NetworkWindow(BarPanel):
         self.wired.set_visible(bool(wired))
 
         # rebuild rows only when something visible changed, so a hovered row isn't reset every scan
-        shown = (found, wired, self.pending, self.asking, self.open)
+        shown = (found, wired, self.pending, self.asking, self.open, self.arming)
         if shown != self.shown:
             self.shown = shown
             self.wifi_list.children = [widget for n in found for widget in self.network_rows(n)]
@@ -180,18 +181,23 @@ class NetworkWindow(BarPanel):
             end = text("󰌾" if n["secure"] else "", "net-lock")
         needs_password = n["secure"] and not n["known"]
         menu = (lambda: self.toggle_options(ssid)) if n["known"] and not self.asking else None
+        if menu and not n["active"] and ssid != self.pending:
+            more = Button(label="\U000F01D8", style_classes=("net-more",), tooltip_text="Options", on_clicked=lambda *_: menu())  # nf-md-dots_horizontal
+            more.set_can_focus(False)
+            end = Box(spacing=6, children=[end, more])
         if n["active"]:
             click, tooltip = menu and (lambda *_: menu()), "Options"
         else:
             click = lambda *_: self.ask("" if self.asking == ssid else ssid) if needs_password else self.join(ssid)
-            tooltip = "Cancel" if ssid == self.asking else "Join · right-click for options" if menu else "Join"
+            tooltip = "Cancel" if ssid == self.asking else "Join"
         selected = n["active"] or ssid in (self.asking, self.open)
         rows: list[Gtk.Widget] = [list_row(
             signal_icon(n["signal"]), ssid, end, classes=("default",) if selected else (), on_clicked=click, tooltip=tooltip,
             icon_classes=("net-signal", *(("weak",) if n["signal"] < 40 else ())), on_menu=menu,
         )]
         if ssid == self.open:
-            buttons = [button("Forget", lambda *_: self.forget(ssid), "net-action")]
+            armed = self.arming == ssid
+            buttons = [button("Forget?" if armed else "Forget", lambda *_: self.forget(ssid), "net-action", *(("armed",) if armed else ()))]
             if n["active"]:
                 buttons.append(button("Disconnect", lambda *_: self.disconnect(), "net-action"))
             rows.append(Box(spacing=8, style_classes=("net-options",), children=[Box(h_expand=True), *buttons]))
@@ -199,6 +205,7 @@ class NetworkWindow(BarPanel):
 
     def toggle_options(self, ssid: str) -> None:
         self.open = "" if self.open == ssid else ssid
+        self.arming = ""
         self.update(self.value)
 
     def disconnect(self) -> None:
@@ -208,6 +215,10 @@ class NetworkWindow(BarPanel):
                 self.run(link["device"], ["device", "disconnect", link["device"]], "Couldn't disconnect")
 
     def forget(self, ssid: str) -> None:
+        if self.arming != ssid:  # deletes the profile and its password: confirm with a second click
+            self.arming = ssid
+            self.update(self.value)
+            return
         self.open = ""
         self.run("", ["connection", "delete", *(arg for uuid in self.profiles.get(ssid, []) for arg in ("uuid", uuid))], f"Couldn't forget {ssid}")
 
@@ -231,7 +242,7 @@ class NetworkWindow(BarPanel):
         )
 
     def ask(self, ssid: str, hint: str = "") -> None:
-        self.asking = ssid
+        self.asking, self.arming = ssid, ""
         self.entry.set_text("")
         self.set_hint(hint or (f"Enter the password for {ssid}" if ssid else ""), bool(hint))
         self.update(self.value)
@@ -262,7 +273,7 @@ class NetworkWindow(BarPanel):
         self.run(ssid, args, failed)
 
     def run(self, target: str, args: list[str], failed: str | Callable[[str], None]) -> None:
-        self.pending = target
+        self.pending, self.arming = target, ""
 
         def done(ok: bool, error: str) -> None:
             self.pending = ""
