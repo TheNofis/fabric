@@ -195,11 +195,7 @@ def login() -> None:
     print("lists:", ", ".join(item.title for item in api.reminders.lists()))
 
 
-if __name__ == "__main__":
-    if sys.argv[1:] == ["login"]:
-        login()
-        sys.exit()
-
+def check() -> None:
     import tempfile
     from pathlib import Path
 
@@ -334,3 +330,7 @@ if __name__ == "__main__":
     assert all(n.text != "Old task" for n in store.all)
     assert Notes(path).cursor == store.cursor and Notes(path).lists == store.lists  # persisted
     print("dayline sync: ok")
+
+
+if __name__ == "__main__":
+    login() if sys.argv[1:] == ["login"] else check()

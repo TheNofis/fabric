@@ -15,7 +15,7 @@ from services.monitors import Monitor
 from services.state import JsonState
 from services import mock
 from services.system import SystemState, cpu_model
-from shared.constants import GIB, HOT, SCRIPTS
+from shared.constants import GIB, HOT
 from shared.ui import amount, big_value, detail_row, meter, panel, section, stat_value
 from shared.widgets import css, flag, text
 from shared.window import BarPanel
@@ -230,13 +230,3 @@ class SystemMonitorWindow(BarPanel):
         used, total = value.get("mem_used") or 0, value.get("mem_total") or 0
         self.vram.set_text(f"{used / 1024:.1f} / {total / 1024:.1f} GB")
         fill(used, total, self.vram_meter)
-
-
-def build(context: Any) -> list[Any]:
-    history: deque[float] = deque(maxlen=HISTORY)
-    if mock.ENABLED:
-        history.extend([22, 25, 24, 28, 32, 30, 26, 24, 29, 35, 42, 45, 38, 33, 28, 31, 34, 37] * 3)
-    context.system.subscribe(lambda value: history.append(value["cpu"]))
-    gpu = JsonState(SCRIPTS / "gpu.sh", {}, autostart=False)
-    context.sysmons = [SystemMonitorWindow(monitor, context.system, gpu, history) for monitor in context.monitors]
-    return context.sysmons

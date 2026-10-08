@@ -54,8 +54,3 @@ class VoiceWindow(OverlayWindow):
         else:
             self.show_all()
             self.voice.start()
-
-
-def build(context: Any) -> list[Any]:
-    context.voice = VoiceWindow(context.monitors[0], context.voice_state)
-    return [context.voice]

@@ -9,12 +9,21 @@ from __future__ import annotations
 
 from typing import Any
 
+from modules.base import Module
+from modules.notifications.hub import NotificationHub
+from services import mock
 
-def build(context: Any) -> list[Any]:
-    from modules.notifications.hub import NotificationHub
-    from services import mock
 
-    context.notifications = NotificationHub(context.monitors[0], context.clock, lambda: bool(getattr(context, "lock", None) and context.lock.locked))
-    if mock.ENABLED:
-        context.notifications.seed_mock()
-    return [context.notifications.popup_window, context.notifications.center_window]
+class Notifications(Module):
+    name = "notifications"
+    action = "toggle-notifications"
+
+    def build(self) -> list[Any]:
+        modules = self.shell.modules  # the lock is built after this
+        self.hub = NotificationHub(self.shell.monitors[0], self.shell.clock, lambda: "lock" in modules and modules["lock"].locked)
+        if mock.ENABLED:
+            self.hub.seed_mock()
+        return [self.hub.popup_window, self.hub.center_window]
+
+    def activate(self) -> None:
+        self.hub.toggle_center()

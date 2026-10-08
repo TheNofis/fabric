@@ -63,7 +63,7 @@ def relative(day: date, today: date) -> str:
     return {0: "Today", 1: "Tomorrow", -1: "Yesterday"}.get(delta) or (f"In {delta} days" if delta > 0 else f"{-delta} days ago")
 
 
-if __name__ == "__main__":
+def check() -> None:
     assert [parse_time(v) for v in ("", "9", "930", "9:30", "09.30", "23 59", "1405")] == ["", "09:00", "09:30", "09:30", "09:30", "23:59", "14:05"]
     assert [parse_time(v) for v in ("24", "9:60", "abc", "12345", "9:3")] == [None] * 5
     assert split_time("14:30 Call mom") == ("14:30", "Call mom") and split_time("Call mom 9.15") == ("09:15", "Call mom")

@@ -14,8 +14,6 @@ from fabric.widgets.box import Box
 from fabric.widgets.entry import Entry
 from gi.repository import Gtk
 
-from services import askpass, keyring, polkit
-from services import mock
 from services.monitors import Monitor
 from shared.ui import button, password_entry, password_field
 from shared.widgets import flag, say, text, wrapped
@@ -139,15 +137,3 @@ class AuthWindow(PopupWindow):
         self.agent.respond(password, self.choice.get_active())
         for entry in (self.entry, self.repeat):
             entry.set_text("")
-
-
-def build(context: Any) -> list[Any]:
-    if mock.ENABLED:
-        return [AuthWindow(context.monitors[0], context.keyboard)]
-    windows = []
-    for service in (polkit, keyring, askpass):
-        window = AuthWindow(context.monitors[0], context.keyboard)
-        window.agent = service.start(window)
-        if window.agent is not None:
-            windows.append(window)
-    return windows

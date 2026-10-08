@@ -263,7 +263,7 @@ class Notes(State):
             self.on_change()
 
 
-if __name__ == "__main__":
+def check() -> None:
     import tempfile
 
     path = Path(tempfile.mkdtemp()) / "notes.json"

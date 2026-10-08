@@ -8,6 +8,7 @@ from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.entry import Entry
 
+from modules.display.logic import shown
 from services.display import LIMITS, NEUTRAL, DisplayState
 from services.monitors import Monitor
 from services.system import BacklightState
@@ -16,14 +17,6 @@ from shared.widgets import brightness_icon, flag, text, wrapped
 from shared.window import BarPanel
 
 LABELS = {"brightness": "Brightness", "contrast": "Contrast", "gamma": "Gamma", "warmth": "Warmth"}
-
-
-def shown(key: str, value: int) -> str:
-    if key == "gamma":
-        return f"{value / 100:.2f}"
-    if key == "warmth":
-        return "Neutral" if value >= 6500 else f"{value}K"
-    return f"{value}%"
 
 
 class DisplayWindow(BarPanel):
@@ -135,9 +128,3 @@ class DisplayWindow(BarPanel):
         # one click arms (red glyph), a second deletes; leaving the row or 3s disarms
         Confirm(delete, lambda: self.state.delete(name), lambda on: delete.set_tooltip_text("Click again to delete" if on else f"Delete {name}"), area=row)
         return row
-
-
-def build(context: Any) -> list[Any]:
-    state = DisplayState(context.backlight)
-    context.displays = [DisplayWindow(monitor, state, context.backlight) for monitor in context.monitors]
-    return context.displays

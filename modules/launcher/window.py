@@ -132,8 +132,3 @@ class LauncherWindow(FocusPopup):
             return
         self.hide()
         item.action()
-
-
-def build(context: Any) -> list[Any]:
-    context.launcher = LauncherWindow(context.monitors[0])
-    return [context.launcher]

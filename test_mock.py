@@ -5,9 +5,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import config  # loads the GTK versions used by the shell
 from services import mock
 from modules.dayline.store import Note, Notes
+from modules.network.window import nmcli
 from services.launcher import Sources
 from services.state import JsonState
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
@@ -37,7 +37,7 @@ with patch("gi.repository.GLib.spawn_async", side_effect=AssertionError("system 
     assert light.value == 25 and display.value["active"] == "Night"
     run("systemctl", "poweroff")
     copy_text("demo")
-    config.network_module.nmcli(["radio", "wifi", "off"], lambda ok, error: None)
+    nmcli(["radio", "wifi", "off"], lambda ok, error: None)
     sources = Sources()
     sources.reset([])
     assert sources.search("ssh", lambda app: app.icon, "web")[0].detail == "dev@build.example"

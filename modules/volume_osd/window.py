@@ -71,8 +71,3 @@ class VolumeOSD(OverlayWindow):
         self.timer = 0
         self.hide()
         return False
-
-
-def build(context: Any) -> list[Any]:
-    context.volume_osd = VolumeOSD(context.monitors[0], context.audio, context.keyboard)
-    return [context.volume_osd]

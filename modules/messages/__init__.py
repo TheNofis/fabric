@@ -6,15 +6,23 @@
 
 from __future__ import annotations
 
-from typing import Any
+from modules.base import Module
+from modules.messages import format
+from modules.messages.window import MessagesWindow
+from services.tether import Tether
 
 
-def build(context: Any) -> list[Any]:
-    from modules.messages.window import MessagesWindow
-    from services.tether import Tether
+class Messages(Module):
+    name = "messages"
+    action = "toggle-messages"
 
-    context.tether = Tether()
-    context.messages = MessagesWindow(context.monitors[0], context.tether)
-    if getattr(context, "notifications", None):
-        context.notifications.reply = lambda record: context.messages.open_named(record.title)
-    return [context.messages]
+    def build(self) -> list[MessagesWindow]:
+        self.tether = Tether()
+        self.window = MessagesWindow(self.shell.monitors[0], self.tether)
+        if notifications := self.shell.modules.get("notifications"):  # its Reply opens the conversation here
+            notifications.hub.reply = lambda record: self.window.open_named(record.title)
+        return [self.window]
+
+    @staticmethod
+    def check() -> None:
+        format.check()

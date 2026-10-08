@@ -2,43 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 
+from modules.sound.logic import device_icon, devices
 from services.monitors import Monitor
 from services.state import JsonState
-from shared.constants import SCRIPTS
 from shared.ui import amount, big_value, check, header, list_row, panel, row_list, slider
 from shared.widgets import flag, run
 from shared.window import BarPanel
-
-# "G435 Wireless Gaming Headset Digital Stereo (IEC958)" -> "G435 Wireless Gaming Headset"
-PROFILE = re.compile(r"\s+(Analog |Digital )?(Stereo|Mono|Surround [\d.]+)( \(.*\))?$")
-
-
-def devices(items: list[dict[str, Any]], default: str) -> list[dict[str, Any]]:
-    """pactl JSON sinks/sources -> what the panel shows; monitor sources are not inputs."""
-    return [
-        {
-            "name": item["name"],
-            "label": PROFILE.sub("", item["description"]),
-            "kind": item.get("properties", {}).get("device.form_factor", ""),
-            "volume": max((int(channel["value_percent"].rstrip("%")) for channel in item["volume"].values()), default=0),
-            "muted": item["mute"],
-            "default": item["name"] == default,
-        }
-        for item in items
-        if item.get("properties", {}).get("device.class") != "monitor"
-    ]
-
-
-def device_icon(kind: str, output: bool) -> str:
-    if kind in ("headset", "headphone"):
-        return "󰋋"
-    return "󰓃" if output else "󰍬"
 
 
 class Channel(Box):
@@ -125,9 +99,3 @@ class SoundWindow(BarPanel):
         for channel in (self.output, self.input):
             if channel.get_visible():
                 channel.show_all()
-
-
-def build(context: Any) -> list[Any]:
-    state = JsonState(SCRIPTS / "sound.sh", {})
-    context.sounds = [SoundWindow(monitor, state) for monitor in context.monitors]
-    return context.sounds

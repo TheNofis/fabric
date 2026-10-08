@@ -17,37 +17,37 @@ from gi.repository import GLib
 
 from fabric import Application
 
-from modules import dayline as dayline_module
-from modules import display as display_module
-from modules import bar as bar_module
-from modules import calendar as calendar_module
-from modules import claude as claude_module
-from modules import launcher as launcher_module
-from modules import lock as lock_module
-from modules import messages as messages_module
-from modules import music as music_module
-from modules import network as network_module
-from modules import notifications as notifications_module
-from modules import auth as auth_module
-from modules import sound as sound_module
-from modules import sysmon as sysmon_module
-from modules import volume_osd as volume_osd_module
-from modules import voice as voice_module
+from modules.auth import Auth
 from modules.bar import Bar
-from modules.calendar import CalendarWindow
-from modules.dayline.window import DaylineWindow
-from modules.launcher import LauncherWindow
-from modules.messages.window import MessagesWindow
+from modules.base import Module
+from modules.calendar import Calendar
+from modules.claude import Claude
+from modules.dayline import Dayline
+from modules.display import Display
+from modules.launcher import Launcher
+from modules.lock import Lock
+from modules.messages import Messages
+from modules.music import Music
+from modules.network import Network
+from modules.notifications import Notifications
+from modules.sound import Sound
+from modules.sysmon import Sysmon
+from modules.voice import Voice
+from modules.volume_osd import VolumeOsd
 from services.launcher import as_url, parse_sites, calc, clipboard, commands, emoji, fuzzy, power, rank
-from modules.music import MusicWindow, local_art_path
-from modules.notifications.hub import NotificationHub
-from modules.registry import ModuleRegistry, ModuleSpec
-from modules.volume_osd import VolumeOSD
 from services.monitors import Monitor, parse_monitors, read_monitors
 from services.state import JsonState, State, parse_json
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState, busy, cpu_model, default_interface, human_bytes
 from shared.constants import ROOT, SCRIPTS
 from shared.widgets import volume_icon
+
+
+# The desktop, built in this order: the bar after the panels it opens, Messages after
+# Notifications (it takes over their Reply). A new module is a folder and a line here.
+MODULES: list[type[Module]] = [
+    Calendar, Sysmon, Sound, Network, Claude, Display, Bar, Music, VolumeOsd,
+    Notifications, Launcher, Dayline, Messages, Voice, Lock, Auth,
+]
 
 
 class Shell:
@@ -64,93 +64,13 @@ class Shell:
         self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
         self.voice_state = JsonState(SCRIPTS / "voice.py", {"state": "loading"}, autostart=False)
         self.keyboard = KeyboardState()
-        self.registry = ModuleRegistry(
-            (
-                ModuleSpec("calendar", calendar_module.build),
-                ModuleSpec("sysmon", sysmon_module.build),
-                ModuleSpec("sound", sound_module.build),
-                ModuleSpec("network", network_module.build),
-                ModuleSpec("claude", claude_module.build),
-                ModuleSpec("display", display_module.build),
-                ModuleSpec("bar", bar_module.build),
-                ModuleSpec("music", music_module.build),
-                ModuleSpec("volume_osd", volume_osd_module.build),
-                ModuleSpec("notifications", notifications_module.build),
-                ModuleSpec("launcher", launcher_module.build),
-                ModuleSpec("dayline", dayline_module.build),
-                ModuleSpec("messages", messages_module.build),  # after notifications: hooks its Reply
-                ModuleSpec("voice", voice_module.build),
-                ModuleSpec("lock", lock_module.build),
-                ModuleSpec("auth", auth_module.build),
-            )
-        )
-        self.calendars: list[CalendarWindow] = []
-        self.sysmons: list[sysmon_module.SystemMonitorWindow] = []
-        self.sounds: list[sound_module.SoundWindow] = []
-        self.network_panels: list[network_module.NetworkWindow] = []
-        self.claude_panels: list[claude_module.ClaudeWindow] = []
-        self.displays: list[display_module.DisplayWindow] = []
-        self.bars: list[Bar] = []
-        self.music_window: MusicWindow | None = None
-        self.volume_osd: VolumeOSD | None = None
-        self.notifications: NotificationHub | None = None
-        self.launcher: LauncherWindow | None = None
-        self.dayline: DaylineWindow | None = None
-        self.messages: MessagesWindow | None = None
-        self.voice: voice_module.VoiceWindow | None = None
-        self.lock: lock_module.Lock | None = None
-        self.windows = self.registry.build(self)
+        self.modules: dict[str, Module] = {}
+        self.windows: list[Any] = []
+        for cls in MODULES:
+            module = self.modules[cls.name] = cls(self)
+            module.windows = module.build()
+            self.windows += module.windows
 
-
-shell: Shell | None = None
-
-
-@Application.action("toggle-music")
-def toggle_music() -> None:
-    if shell:
-        shell.music_window.toggle()
-
-
-@Application.action("toggle-notifications")
-def toggle_notifications() -> None:
-    if shell:
-        shell.notifications.toggle_center()
-
-
-@Application.action("toggle-launcher")
-def toggle_launcher() -> None:
-    if shell:
-        shell.launcher.toggle()
-
-
-@Application.action("toggle-dayline")
-def toggle_dayline() -> None:
-    if shell:
-        shell.dayline.toggle()
-
-
-@Application.action("toggle-messages")
-def toggle_messages() -> None:
-    if shell:
-        shell.messages.toggle()
-
-
-@Application.action("toggle-voice")
-def toggle_voice() -> None:
-    if shell:
-        shell.voice.toggle()
-
-
-@Application.action("lock")
-def lock() -> None:
-    if shell:
-        shell.lock.lock()
-
-
-@Application.action("show-volume-osd")
-def show_volume_osd() -> None:
-    if shell:
-        shell.volume_osd.open_temporarily()
 
 
 def self_check() -> None:
@@ -161,7 +81,6 @@ def self_check() -> None:
     ]
     assert parse_json('{"ok": true}', {}) == {"ok": True}
     assert parse_json("broken", {"ok": False}) == {"ok": False}
-    assert local_art_path("https://example.com/cover.png") is None
     routes = (
         "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\n"
         "wlan0\t00000000\t0101A8C0\t0003\t0\t0\t600\t00000000\n"
@@ -230,27 +149,6 @@ def self_check() -> None:
     from services.polkit import pick_identity
     root, me, wheel = ("unix-user", {"uid": 0}), ("unix-user", {"uid": 1000}), ("unix-group", {"gid": 998})
     assert pick_identity([root, wheel, me], 1000) == me and pick_identity([wheel, root], 1000) == root and pick_identity([wheel], 1000) == wheel
-    sinks = [
-        {"name": "hs", "description": "G435 Wireless Gaming Headset Digital Stereo (IEC958)", "mute": False,
-         "volume": {"front-left": {"value_percent": "83%"}, "front-right": {"value_percent": "80%"}}, "properties": {"device.form_factor": "headset"}},
-        {"name": "hs.monitor", "description": "Monitor of G435", "mute": False, "volume": {}, "properties": {"device.class": "monitor"}},
-        {"name": "pci", "description": "Built-in Audio Analog Stereo", "mute": True, "volume": {"mono": {"value_percent": "5%"}}},
-    ]
-    assert sound_module.devices(sinks, "pci") == [
-        {"name": "hs", "label": "G435 Wireless Gaming Headset", "kind": "headset", "volume": 83, "muted": False, "default": False},
-        {"name": "pci", "label": "Built-in Audio", "kind": "", "volume": 5, "muted": True, "default": True},
-    ]
-    wifi = "*:79:WPA1 WPA2:Home\n :34:WPA2:Home\n :90:--:Cafe\\: Free\n :50::\n :20:WPA2:Work\n :60:WPA2:Home 5G\n"
-    assert [(n["ssid"], n["signal"], n["secure"], n["active"], n["known"]) for n in network_module.networks(wifi, {"Home", "Work"})] == [
-        ("Home", 79, True, True, True), ("Work", 20, True, False, True), ("Cafe: Free", 90, False, False, False), ("Home 5G", 60, True, False, False)]
-    assert network_module.saved("a1:Home\nb2:Cafe: Free\nc3:Home\nd4:\n") == {"Home": ["a1", "c3"], "Cafe: Free": ["b2"]}
-    devices = "wlan0:wifi:connected:Home\n9C\\:92:bt:disconnected:\neth0:ethernet:unavailable:\n"
-    assert network_module.links(devices, "ethernet") == [{"device": "eth0", "state": "unavailable", "connection": ""}]
-    assert [network_module.signal_icon(s) for s in (10, 40, 70, 95)] == ["󰤟", "󰤢", "󰤥", "󰤨"]
-    assert claude_module.current({"pct": 40, "resets": 1000}, 400) == (40, 600) and claude_module.current({"pct": 40, "resets": 1000}, 1000) == (0, 0)
-    assert [claude_module.duration(s) for s in (1, 2700, 8040, 108000)] == ["1m", "45m", "2h 14m", "1d 6h"]
-    assert [claude_module.pace(p, r, 100) for p, r in ((50, 50), (52, 50), (60, 50), (38, 50))] == ["on pace", "on pace", "10% ahead of pace", "12% under pace"]
-    assert [claude_module.level({"severity": s}, p) for s, p in (("normal", 36), ("warning", 80), ("warning", 0), ("normal", 100), ("critical", 95))] == ["", "warn", "", "alert", "alert"]
     from services.display import DisplayState, ramp, whitepoint
     assert whitepoint(6500) == (1.0, 1.0, 1.0) and whitepoint(3400)[2] < whitepoint(3400)[1] < 1.0
     red, green, blue = ramp(256, 100, 100, 6500)
@@ -273,12 +171,18 @@ def self_check() -> None:
         assert store.value["active"] == "" and store.preset("Mine") is None
         assert DisplayState(light, Path(directory) / "display.json").value == store.value  # reloaded from disk
         assert set_gamma.call_args.kwargs == {"contrast": 150, "gamma": 100, "warmth": 4000}
+    assert {cls.action for cls in MODULES} - {None} == {  # the toggle-*.sh scripts and i3 call these by name
+        "toggle-music", "toggle-notifications", "toggle-launcher", "toggle-dayline", "toggle-messages", "toggle-voice", "lock", "show-volume-osd"}
+    for cls in MODULES:
+        cls.check()
     print("config self-check: ok")
 
 
 def main() -> None:
-    global shell
     shell = Shell()
+    for module in shell.modules.values():
+        if module.action:
+            Application.action(module.action)(module.activate)
     app = Application("fabric-shell", *shell.windows)
     app.set_stylesheet_from_file(str(ROOT / "style.css"), compile=False)
     for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):

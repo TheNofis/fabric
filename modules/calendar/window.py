@@ -17,8 +17,8 @@ from shared.window import BarPanel
 
 
 class CalendarWindow(BarPanel):
-    def __init__(self, monitor: Monitor, clock: ClockState, context: Any):
-        self.context = context  # dayline and notes are built after the calendars; read them lazily
+    def __init__(self, monitor: Monitor, clock: ClockState, shell: Any):
+        self.shell = shell  # Dayline is built after the calendars: read it lazily
         self.today = mock.now().date()
         self.month = month_start(self.today)
         self.heading = DateHeading()
@@ -46,23 +46,14 @@ class CalendarWindow(BarPanel):
         self.show_month(self.today if following else self.month)
 
     def open_day(self, day: date) -> None:
-        dayline = getattr(self.context, "dayline", None)
-        if dayline:
+        if dayline := self.shell.modules.get("dayline"):
             self.hide()
-            dayline.show_day(day)
+            dayline.window.show_day(day)
 
     def show_month(self, day: date, direction: int = 0) -> None:
         """direction: sign says which way the grid slides (0: in place)."""
         self.month = month_start(day)
-        notes = getattr(self.context, "notes", None)
+        notes = getattr(self.shell.modules.get("dayline"), "notes", None)
         busy = {n.day for n in notes.value if n.day and not n.done and not n.deleted} if notes else set()
         self.grid.render(self.month, grid_days(self.month), self.today, direction, away=self.month != month_start(self.today),
                        marks=lambda cell: {"busy": cell.isoformat() in busy})
-
-
-def build(context: Any) -> list[Any]:
-    context.calendars = [
-        CalendarWindow(monitor, context.clock, context)
-        for monitor in context.monitors
-    ]
-    return context.calendars

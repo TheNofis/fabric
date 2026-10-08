@@ -18,7 +18,7 @@ from shared.window import MonitorWindow
 
 
 class LockWindow(MonitorWindow):
-    def __init__(self, monitor: Monitor, context: Any, entry: Entry | None = None):
+    def __init__(self, monitor: Monitor, shell: Any, entry: Entry | None = None):
         time, date = text("", "lock-time"), text("", "lock-date")
         center = Box(orientation="v", spacing=6, h_expand=True, v_expand=True, h_align="center", v_align="center", children=[time, date])
         if mock.ENABLED:
@@ -28,7 +28,7 @@ class LockWindow(MonitorWindow):
             center.add(password_field(entry, layout))
             self.status = text("", "lock-status")  # always present, so the layout doesn't jump when it fills
             center.add(self.status)
-            context.keyboard.subscribe(lambda v: layout.set_text(str(v.get("layout", "us")).upper() + (" 󰪛" if v.get("caps") else "")))
+            shell.keyboard.subscribe(lambda v: layout.set_text(str(v.get("layout", "us")).upper() + (" 󰪛" if v.get("caps") else "")))
         super().__init__(
             monitor,
             title="fabric-lock",
@@ -39,22 +39,22 @@ class LockWindow(MonitorWindow):
             visible=False,
             child=Box(style_classes=("lock",), children=[center]),
         )
-        context.clock.subscribe(lambda now: (time.set_text(now.strftime("%H:%M")), date.set_text(now.strftime("%A, %d %B"))))
+        shell.clock.subscribe(lambda now: (time.set_text(now.strftime("%H:%M")), date.set_text(now.strftime("%A, %d %B"))))
 
 
 class Lock:
     """All lock windows; the first one owns the entry and the keyboard/pointer grab."""
 
-    def __init__(self, context: Any):
+    def __init__(self, shell: Any):
         self.entry = password_entry(self._check)
-        self.windows = [LockWindow(m, context, self.entry if i == 0 else None) for i, m in enumerate(context.monitors)]
+        self.windows = [LockWindow(m, shell, self.entry if i == 0 else None) for i, m in enumerate(shell.monitors)]
         main = self.windows[0]
         self.status = main.status
         self.entry.connect("changed", lambda *_: self._status(""))
         main.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
         main.connect("map-event", lambda *_: (main.take_focus(), self.entry.grab_focus(), self._grab()))
         main.connect("grab-broken-event", lambda *_: GLib.timeout_add(100, self._grab) and False)
-        self.context = context
+        self.shell = shell
         self.locked = False
 
     def lock(self) -> None:
@@ -63,7 +63,7 @@ class Lock:
         self.locked = True
         self.entry.set_text("")
         self.entry.set_sensitive(True)
-        if hub := getattr(self.context, "notifications", None):
+        if hub := getattr(self.shell.modules.get("notifications"), "hub", None):
             hub.popup_window.hide()  # popups already up would sit under (or flash over) the lock
         for window in self.windows:
             window.show_all()
@@ -114,7 +114,7 @@ class Lock:
             self.windows[0].get_display().get_default_seat().ungrab()
             for window in self.windows:
                 window.hide()
-            if (hub := getattr(self.context, "notifications", None)) and hub.popup_widgets:
+            if (hub := getattr(self.shell.modules.get("notifications"), "hub", None)) and hub.popup_widgets:
                 hub.popup_window.show_all()
         else:
             flag(self.entry.get_parent(), "failed", True)
@@ -125,8 +125,3 @@ class Lock:
     def _status(self, value: str, failed: bool = False) -> None:
         self.status.set_text(value)
         flag(self.status, "failed", failed)
-
-
-def build(context: Any) -> list[Any]:
-    context.lock = Lock(context)
-    return context.lock.windows

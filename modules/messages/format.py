@@ -47,7 +47,7 @@ def search(query: str, threads: list[Thread], contacts: list[tuple[str, str]]) -
     return found, contacts, number if number and number not in known and all(number != address for _, address in contacts) else None
 
 
-if __name__ == "__main__":
+def check() -> None:
     from datetime import timedelta
 
     from shared.widgets import short_time

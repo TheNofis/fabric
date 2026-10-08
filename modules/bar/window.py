@@ -13,12 +13,6 @@ from fabric.widgets.label import Label
 from fabric.system_tray.widgets import get_tray_watcher
 from gi.repository import Gdk, GLib, Gtk
 
-from modules.calendar import CalendarWindow
-from modules.claude import ClaudeWindow, claude_slot
-from modules.display import DisplayWindow
-from modules.network import NetworkWindow
-from modules.sound import SoundWindow
-from modules.sysmon import SystemMonitorWindow
 from services import mock
 from services.monitors import Monitor
 from services.state import JsonState
@@ -26,7 +20,7 @@ from services.system import BacklightState, ClockState, KeyboardState, NetworkSt
 from shared.constants import BAR_HEIGHT, GIB, HOT
 from shared.ui import Glider, Slider, slider
 from shared.widgets import brightness_icon, flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
-from shared.window import MonitorWindow
+from shared.window import BarPanel, MonitorWindow
 
 
 class WorkspacesView(EventBox):
@@ -176,14 +170,13 @@ class Bar(MonitorWindow):
         audio: JsonState,
         network: NetworkState,
         keyboard: KeyboardState,
-        calendar: CalendarWindow,
-        sysmon: SystemMonitorWindow,
-        sound: SoundWindow,
-        network_panel: NetworkWindow,
-        claude_usage: JsonState,
-        claude_panel: ClaudeWindow,
+        calendar: BarPanel,
+        sysmon: BarPanel,
+        sound: BarPanel,
+        network_panel: BarPanel,
+        claude: Gtk.Widget,  # the Claude module's own slot
         backlight: BacklightState,
-        display: DisplayWindow,
+        display: BarPanel,
         notifications: Callable[[], Any],
     ):
         temp = text("0°", "value")
@@ -207,7 +200,7 @@ class Bar(MonitorWindow):
             child=Box(spacing=18, children=[temp_stat, stat("󰓅", cpu), memory]),
             on_button_press_event=lambda widget, *_: sysmon.toggle_at(widget) or True,
         )
-        left = island(stats, claude_slot(claude_usage, clock, claude_panel), clock_widget)
+        left = island(stats, claude, clock_widget)
 
         layout = text("US", "value")
         caps = text("caps", "caps")
@@ -356,30 +349,3 @@ class Bar(MonitorWindow):
         keyboard.subscribe(update_keyboard)
         backlight.subscribe(update_brightness)
         GLib.idle_add(attach_bell)
-
-
-def build(context: Any) -> list[Any]:
-    context.bars = [
-        Bar(
-            monitor,
-            context.clock,
-            context.system,
-            context.workspaces,
-            context.audio,
-            context.network,
-            context.keyboard,
-            calendar,
-            sysmon,
-            sound,
-            network_panel,
-            context.claude,
-            claude_panel,
-            context.backlight,
-            display,
-            lambda: context.notifications,
-        )
-        for monitor, calendar, sysmon, sound, network_panel, claude_panel, display in zip(
-            context.monitors, context.calendars, context.sysmons, context.sounds, context.network_panels, context.claude_panels, context.displays
-        )
-    ]
-    return context.bars
