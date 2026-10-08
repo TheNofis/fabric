@@ -15,6 +15,7 @@ from fabric.notifications import Notifications
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.eventbox import EventBox
+from fabric.widgets.revealer import Revealer
 from fabric.widgets.scrolledwindow import ScrolledWindow
 import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
@@ -243,6 +244,8 @@ class NotificationHub:
         self.paused: dict[int, tuple[float, float]] = {}  # hovered: id -> (remaining s, timeout s)
         self.progress_timer = 0
         self.save_timer = 0
+        self.clear_timer = 0
+        self.clear_armed = False
         self.dnd = False if mock.ENABLED else DND_FILE.exists()
         self.history = Box(orientation="v", spacing=10)
         self.empty = text("No notifications", "notification-empty")
@@ -257,6 +260,20 @@ class NotificationHub:
             on_clicked=lambda *_: self.toggle_dnd(),
         )
         self.dnd_button.set_tooltip_text("Do not disturb: on" if self.dnd else "Do not disturb: off")
+        # clearing is unrecoverable: the first click grows the icon into a red "Clear N?" pill, the second clears
+        self.clear_label = text("", "notification-clear-label")
+        self.clear_reveal = Revealer(child=self.clear_label, transition_type="slide-left", transition_duration=160)
+        self.clear_button = Button(
+            child=Box(h_align="center", children=[text("󰃢"), self.clear_reveal]),  # centered: the folded label is 0px wide
+            tooltip_text="Clear all",
+            style_classes=("notification-action", "notification-clear"),
+            on_clicked=lambda *_: self.clear() if self.clear_armed else self.arm_clear(True),
+        )
+        self.clear_button.set_sensitive(False)
+        for button in (self.dnd_button, self.clear_button):
+            button.set_can_focus(False)  # pointer-only; otherwise opening the center rings the first one
+            button.set_valign(Gtk.Align.CENTER)  # 36px pills, not stretched to the clock's height
+        self.clear_button.connect("leave-notify-event", lambda _w, event: event.detail != Gdk.NotifyType.INFERIOR and self.arm_clear(False))
         time_label = text("", "notification-center-time", xalign=0)
         date_label = text("", "notification-center-date", xalign=0)
         clock.subscribe(lambda now: (time_label.set_text(now.strftime("%H:%M")), date_label.set_text(now.strftime("%a %d %b"))))
@@ -271,7 +288,7 @@ class NotificationHub:
                     children=[
                         Box(orientation="v", h_expand=True, children=[time_label, date_label]),
                         self.dnd_button,
-                        Button(label="󰃢", tooltip_text="Clear all", style_classes=("notification-action",), on_clicked=lambda *_: self.clear()),
+                        self.clear_button,
                     ],
                 ),
                 ScrolledWindow(
@@ -304,6 +321,7 @@ class NotificationHub:
         )
         self.popup_window.clip_to(18, self.popups, parts=lambda: self.popups.children)
         self.center_window.clip_to(24, center_body)
+        self.center_window.connect("hide", lambda *_: self.arm_clear(False))
         self.service = SimpleNamespace(notifications={}) if mock.ENABLED else Notifications(on_notification_added=self.add)
         # closed by the app (CloseNotification) or by us: drop the popup, keep history
         if not mock.ENABLED:
@@ -324,6 +342,7 @@ class NotificationHub:
         self.history_widgets[record.id] = card
         card.show_all()
         self.empty.set_visible(False)
+        self.clear_button.set_sensitive(True)
 
     def save(self) -> None:
         # coalesce bursts (clear all, a spammy sender) into one write
@@ -457,8 +476,22 @@ class NotificationHub:
             self.history.remove(widget)
             widget.destroy()
         self.empty.set_visible(not self.records)
+        self.clear_button.set_sensitive(bool(self.records))
         self.remove_popup(notification_id)
         self.save()
+
+    def arm_clear(self, on: bool) -> bool:
+        # disarms on its own after 3s, when the pointer leaves the button, or when the center closes
+        if self.clear_timer:
+            GLib.source_remove(self.clear_timer)
+        self.clear_timer = GLib.timeout_add_seconds(3, lambda: setattr(self, "clear_timer", 0) or self.arm_clear(False)) if on else 0
+        self.clear_armed = on
+        if on:
+            self.clear_label.set_text(f"Clear {len(self.records)}?")
+        flag(self.clear_button, "armed", on)
+        self.clear_reveal.set_reveal_child(on)
+        self.clear_button.set_tooltip_text(None if on else "Clear all")
+        return False
 
     def activate(self, record: NotificationRecord, action: str) -> None:
         if action:
@@ -476,6 +509,7 @@ class NotificationHub:
         self.remove_record(record.id)
 
     def clear(self) -> None:
+        self.arm_clear(False)
         for notification in list(self.service.notifications.values()):
             notification.close("dismissed-by-user")
         for record in list(self.records):

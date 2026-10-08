@@ -422,6 +422,13 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 /* Center header buttons are bare icons with the shared hover fill; DND on (.active) sits in a faint pill. */
 .notification-center-head .notification-action.active { background-color: alpha(@fg, 0.12); }
 .notification-center-head .notification-action.active:hover { background-color: alpha(@fg, 0.18); }
+/* Clear all, armed: the icon grows into a red pill naming what goes ("Clear 12?"), the network panel's Forget? fill.
+   Disabled on an empty history. */
+.notification-center-head .notification-clear-label { font-size: 13px; font-weight: 600; margin-left: 7px; }
+.notification-center-head .notification-action.armed { color: white; background-color: @critical_fill; padding: 0 14px 0 12px; }  /* optically even: the glyph carries side bearing */
+.notification-center-head .notification-action.armed:hover { background-color: shade(@critical_fill, 1.08); }
+.notification-center-head .notification-action.armed:active { background-color: shade(@critical_fill, 0.90); }
+.notification-center-head .notification-action:disabled { color: alpha(@fg, 0.28); background-color: transparent; }
 
 /* Launcher: Spotlight-like large search field, selection is a neutral glass row. */
 .launcher {
