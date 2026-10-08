@@ -9,12 +9,16 @@ from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from gi.repository import Gtk, Pango
 
+from shared.ui.segmented import Glider
 from shared.widgets import text
 
 
 def row_list() -> Box:
-    """Column of list_rows; bleeds into the panel padding so row fills line up with the text."""
-    return Box(orientation="v", spacing=2, style_classes=("ui-rows",))
+    """Column of list_rows; bleeds into the panel padding so row fills line up with the text.
+    The default row's fill is a thumb that glides to the new default when it changes."""
+    rows = Box(orientation="v", spacing=2, style_classes=("ui-rows",))
+    rows.glider = Glider(rows, "ui-row-thumb", follow="default")
+    return rows
 
 
 def list_row(icon: str, label: str, end: Gtk.Widget, *, classes: tuple[str, ...] = (), icon_classes: tuple[str, ...] = (),

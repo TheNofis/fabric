@@ -14,8 +14,9 @@
 .ui-rows { margin: 0 -8px; }
 .ui-row { padding: 6px 8px; border-radius: 8px; color: @muted; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-row:hover { color: @fg; background-color: alpha(@fg, 0.06); }
-.ui-row.default { color: @fg; background-color: alpha(@fg, 0.12); }
-.ui-row.default:hover { background-color: alpha(@fg, 0.16); }
+.ui-row.default { color: @fg; }
+.ui-row.default:hover { background-color: alpha(@fg, 0.04); }  /* over the thumb: 0.16 together */
+.ui-row-thumb { background-color: alpha(@fg, 0.12); border-radius: 8px; }  /* the default row's fill, glides on change */
 .ui-row:active { background-color: alpha(black, 0.25); }  /* press darkens, like every target in the shell */
 .ui-row:disabled { color: alpha(@fg, 0.40); }
 .ui-row-icon { font-size: 14px; min-width: 16px; }
