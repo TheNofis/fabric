@@ -9,6 +9,11 @@ ENABLED = os.environ.get("FABRIC_MOCK", "").lower() in {"1", "true", "yes"}
 NOW = datetime(2026, 10, 1, 10, 30)
 
 
+def now() -> datetime:
+    """The clock the UI shows: frozen at NOW in mock mode."""
+    return NOW if ENABLED else datetime.now()
+
+
 def json_for(script: str) -> object:
     name = script.rsplit("/", 1)[-1]
     if name == "audio.sh":

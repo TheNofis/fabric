@@ -9,7 +9,7 @@ from fabric.widgets.button import Button
 from fabric.widgets.centerbox import CenterBox
 from fabric.widgets.eventbox import EventBox
 from fabric.widgets.image import Image
-from fabric.widgets.scale import Scale
+from fabric.widgets.label import Label
 from fabric.system_tray.widgets import get_tray_watcher
 from gi.repository import Gdk, GLib, Gtk
 
@@ -23,9 +23,9 @@ from services import mock
 from services.monitors import Monitor
 from services.state import JsonState
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
-from shared.constants import BAR_HEIGHT
-from shared.ui import Glider, slider
-from shared.widgets import flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
+from shared.constants import BAR_HEIGHT, GIB, HOT
+from shared.ui import Glider, Slider, slider
+from shared.widgets import brightness_icon, flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
 from shared.window import MonitorWindow
 
 
@@ -148,6 +148,24 @@ class Tray(Box):
         return True
 
 
+def slider_stat(glyph: str, scale: Slider, on_scroll: Callable[[Gdk.EventScroll], Any],
+                on_press: Callable[[Box, Gdk.EventButton], bool], **kwargs: Any) -> tuple[EventBox, Box, Label, Label]:
+    """Slot with an icon and a percent whose slider slides out on hover (volume, brightness).
+    on_press gets the stat box, which panels align under. -> (slot, stat box, icon, percent)"""
+    icon, value = text(glyph, "icon"), text("0%", "value", "w-pct")
+    revealer = slide(scale, "left")
+    stat_box = Box(spacing=7, style_classes=("stat",), children=[revealer, icon, value])
+    slot = hover_reveal(
+        stat_box,
+        revealer,
+        events=("scroll", "button-press"),
+        on_scroll_event=lambda _widget, event: on_scroll(event) or True,
+        on_button_press_event=lambda _widget, event: on_press(stat_box, event),
+        **kwargs,
+    )
+    return slot, stat_box, icon, value
+
+
 class Bar(MonitorWindow):
     def __init__(
         self,
@@ -219,73 +237,30 @@ class Bar(MonitorWindow):
             on_button_press_event=lambda _widget, event: network_panel.toggle_at(network_stat) or True if event.button == 1 else False,
         )
 
-        volume_label = text("0%", "value", "w-pct")
-        volume_icon_label = text("󰕾", "icon")
         # sliders stop at 100%; scroll and the i3 keys boost to 200%, shown as .warn
-        volume_scale = slider("vol-slider", size=(88, -1))
-        syncing = {"value": False}
-        pending = {"source": 0}
+        volume_scale = slider("vol-slider", size=(88, -1), on_change=lambda value: run("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{value}%"))
 
-        # Dragging emits dozens of value-changed per second: apply at most every 50ms,
-        # always with the latest slider position.
-        def apply_volume() -> bool:
-            pending["source"] = 0
-            run("wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{int(volume_scale.value)}%")
-            return False
-
-        def set_volume(_scale: Scale) -> None:
-            if not syncing["value"] and not pending["source"]:
-                pending["source"] = GLib.timeout_add(50, apply_volume)
-
-        volume_scale.connect("value-changed", set_volume)
-        volume_revealer = slide(volume_scale, "left")
-        volume_stat = Box(
-            spacing=7,
-            style_classes=("stat",),
-            children=[volume_revealer, volume_icon_label, volume_label],
-        )
-
-        def scroll_volume(_widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
+        def scroll_volume(event: Gdk.EventScroll) -> None:
             # same cap as ~/.config/i3/scripts/volume.sh (200%)
             run("wpctl", "set-volume", "-l", "2", "@DEFAULT_AUDIO_SINK@", "5%+" if scroll_up(event) else "5%-")
-            return True
 
-        volume_widget = hover_reveal(
-            volume_stat,
-            volume_revealer,
-            events=("scroll", "button-press"),
-            on_scroll_event=scroll_volume,
-            on_button_press_event=lambda _widget, event: (
-                sound.toggle_at(volume_stat) or True if event.button == 1
+        volume_widget, volume_stat, volume_icon_label, volume_label = slider_stat(
+            "󰕾",
+            volume_scale,
+            scroll_volume,
+            lambda stat_box, event: (
+                sound.toggle_at(stat_box) or True if event.button == 1
                 else toggle_mute() or True if event.button == 2
                 else run("pavucontrol") or True if event.button == 3 else False
             ),
             tooltip_text="Middle-click to mute",
         )
-        brightness_label = text("0%", "value", "w-pct")
-        brightness_icon = text("󰃠", "icon")
-        brightness_scale = slider("vol-slider", max_value=101, size=(88, -1))
-        brightness_syncing = {"value": False}
-        brightness_pending = {"source": 0}
-
-        def apply_brightness() -> bool:
-            brightness_pending["source"] = 0
-            backlight.set(int(brightness_scale.value))
-            return False
-
-        def drag_brightness(_scale: Scale) -> None:
-            if not brightness_syncing["value"] and not brightness_pending["source"]:
-                brightness_pending["source"] = GLib.timeout_add(50, apply_brightness)
-
-        brightness_scale.connect("value-changed", drag_brightness)
-        brightness_revealer = slide(brightness_scale, "left")
-        brightness_stat = Box(spacing=7, style_classes=("stat",), children=[brightness_revealer, brightness_icon, brightness_label])
-        brightness_widget = hover_reveal(
-            brightness_stat,
-            brightness_revealer,
-            events=("scroll", "button-press"),
-            on_scroll_event=lambda _widget, event: backlight.set((backlight.value or 0) + (5 if scroll_up(event) else -5)) or True,
-            on_button_press_event=lambda _widget, event: display.toggle_at(brightness_stat) or True if event.button == 1 else False,
+        brightness_scale = slider("vol-slider", max_value=101, size=(88, -1), on_change=backlight.set)
+        brightness_widget, _, brightness_icon_label, brightness_label = slider_stat(
+            "󰃠",
+            brightness_scale,
+            lambda event: backlight.set((backlight.value or 0) + (5 if scroll_up(event) else -5)),
+            lambda stat_box, event: display.toggle_at(stat_box) or True if event.button == 1 else False,
         )
 
         bell_label = text("󰂚", "icon")
@@ -336,10 +311,10 @@ class Bar(MonitorWindow):
 
         def update_system(value: dict[str, float]) -> None:
             temp.set_text(f"{value['temp']:.0f}°")
-            flag(temp_stat, "alert", value["temp"] >= 80)
+            flag(temp_stat, "alert", value["temp"] >= HOT)
             cpu.set_text(f"{value['cpu']:.0f}%")
-            used.set_text(f"{value['used'] / 1073741824:.1f}G")
-            total.set_text(f"of {value['total'] / 1073741824:.0f}G")
+            used.set_text(f"{value['used'] / GIB:.1f}G")
+            total.set_text(f"of {value['total'] / GIB:.0f}G")
 
         def update_audio(value: dict[str, Any]) -> None:
             muted = bool(value.get("muted"))
@@ -348,11 +323,7 @@ class Bar(MonitorWindow):
             volume_label.set_text(volume_text(volume, muted))
             flag(volume_stat, "alert", muted)
             flag(volume_stat, "warn", volume > 100 and not muted)
-            if pending["source"]:
-                return  # user is dragging; don't yank the slider back to a stale value
-            syncing["value"] = True
-            volume_scale.value = volume
-            syncing["value"] = False
+            volume_scale.sync(volume)
 
         def update_network(value: dict[str, Any]) -> None:
             interface = str(value.get("iface", ""))
@@ -368,13 +339,9 @@ class Bar(MonitorWindow):
             brightness_widget.set_visible(value is not None)
             if value is None:
                 return
-            brightness_icon.set_text("󰃞" if value < 34 else "󰃟" if value < 67 else "󰃠")
+            brightness_icon_label.set_text(brightness_icon(value))
             brightness_label.set_text(f"{value}%")
-            if brightness_pending["source"]:
-                return  # mid-drag; keep the slider where the pointer is
-            brightness_syncing["value"] = True
-            brightness_scale.value = value
-            brightness_syncing["value"] = False
+            brightness_scale.sync(value)
 
         def update_keyboard(value: dict[str, Any]) -> None:
             layout.set_text(str(value.get("layout", "us")).upper())

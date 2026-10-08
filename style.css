@@ -94,23 +94,6 @@ tooltip {
 /* Calendar: today is a light numeral beside its weekday (notification center voice), the month
    below is a quiet grid; the only fill is today's accent disc. */
 .cal { padding: 16px 16px 14px; }
-.cal-day { color: @fg; font-size: 44px; font-weight: 300; letter-spacing: -0.03em; min-width: 52px; }
-.cal-weekday { color: @fg; font-size: 15px; font-weight: 600; }
-.cal-date { color: @muted; font-size: 12px; font-weight: 500; }
-.cal-title { color: @fg; font-size: 13px; font-weight: 600; }
-.cal-back { margin-left: -6px; }
-.cal-back.away:hover { background-color: alpha(@fg, 0.12); color: @fg; }
-.cal-head { color: @muted; font-size: 10px; font-weight: 600; min-height: 22px; }
-.cal-cell { color: @fg; min-width: 30px; min-height: 30px; padding: 0; margin: 1px 0; border-radius: 999px; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
-.cal-cell:hover { background-color: alpha(@fg, 0.08); }
-.cal-cell.outside { color: alpha(@fg, 0.28); }
-.cal-cell.today { color: white; background-color: @accent_fill; }
-.cal-cell.today .cal-num { font-weight: 600; }
-.cal-num { font-size: 12px; margin-top: 4px; }
-/* open notes: Dayline's dot, so the two grids agree */
-.cal-dot { font-size: 7px; color: transparent; margin-top: -3px; }
-.cal-cell.busy .cal-dot { color: @muted; }
-.cal-cell.today.busy .cal-dot { color: white; }
 
 /* Dayline (Super+C): the calendar panel's voice at launcher scale. Accent stays today's disc
    and the caret; the picked day and the note being edited get a neutral fill. Days with notes
@@ -123,18 +106,10 @@ tooltip {
   padding: 18px 20px 16px;
   color: @fg;
 }
-.dayline-cell { min-width: 34px; min-height: 36px; margin: 1px 0; border-radius: 10px; color: @fg; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
-.dayline-cell:hover { background-color: alpha(@fg, 0.08); }
-.dayline-cell:active { background-color: alpha(black, 0.25); }
-.dayline-cell.selected { background-color: alpha(@fg, 0.14); }
-.dayline-cell.today { background-color: @accent_fill; color: white; }
-.dayline-cell.today .dayline-num { font-weight: 600; }
-.dayline-cell.outside { color: alpha(@fg, 0.28); }
-.dayline-num { font-size: 12px; margin-top: 5px; }
-.dayline-dot { font-size: 8px; color: transparent; margin-top: -3px; }
-.dayline-cell.busy .dayline-dot { color: @muted; }
-.dayline-cell.today.busy .dayline-dot { color: white; }
-.dayline-cell.overdue .dayline-dot { color: @critical; }
+/* the month grid at launcher scale: squarer, roomier cells */
+.dayline .ui-day-cell { min-width: 34px; min-height: 36px; border-radius: 10px; }
+.dayline .ui-day-num { margin-top: 5px; }
+.dayline .ui-day-dot { font-size: 8px; }
 .dayline-next { margin-top: 12px; }
 .dayline-section { color: @muted; font-size: 11px; font-weight: 600; }
 .dayline-day { min-width: 330px; }
@@ -198,11 +173,10 @@ tooltip {
 .dayline-list-dot { color: @muted; font-size: 8px; }
 
 /* Composer: the lock screen's input pill at panel scale; time is a quiet mono field at the end. */
-.dayline-input { padding: 8px 14px; border-radius: 12px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.08); }
+.dayline-input { padding: 8px 14px; }
 .dayline-input.invalid { border-color: @critical; }
 .dayline-entry { color: @fg; caret-color: @accent; font-size: 13px; }
 .dayline-entry selection, .dayline-time-entry selection { background-color: alpha(@accent, 0.45); }
-.dayline-placeholder { color: alpha(@fg, 0.40); font-size: 13px; }
 .dayline-time-entry { color: @fg; caret-color: @accent; font-size: 12px; padding-left: 10px; border-left: 1px solid alpha(white, 0.10); }
 .dayline-caption { color: @muted; font-size: 11px; padding: 0 2px; }
 .dayline-time-entry:disabled { color: alpha(@fg, 0.28); }
@@ -230,12 +204,6 @@ tooltip {
 
 /* System monitor: sections split by space, not rules; big light numerals like the notification center.
    Meters are white like every progress in the shell; red only when a value is in trouble. */
-.sysmon-meta { margin-bottom: 5px; }
-.sysmon-value { color: @fg; font-size: 12px; font-weight: 500; }
-.sysmon-label { color: @muted; font-size: 11px; }
-.sysmon-value.alert { color: @critical; font-weight: 600; }
-.sysmon-row { margin-top: 4px; }
-.sysmon-row .sysmon-value { font-size: 11px; }
 .sysmon-graph { color: alpha(@fg, 0.85); margin: 4px 0 2px; }
 
 /* Sound panel: sysmon's layout; the slider is a sysmon meter with a knob, the default device
@@ -270,7 +238,7 @@ tooltip {
 .net-lock { color: @muted; font-size: 12px; }
 .net-status { color: @muted; font-size: 11px; }
 .net-hint { color: @muted; font-size: 11px; margin-left: 2px; }
-.net-hint.error { color: @critical; }
+.net-hint.failed { color: @critical; }
 .ui-panel .net-password { min-width: 0; margin: 2px -8px 0; padding: 7px 14px; }
 .net-password .ui-field-entry { font-size: 13px; }
 .net-options { margin: 2px 0 6px; }
@@ -513,13 +481,11 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .msg-icon-button:active { background-color: alpha(black, 0.25); }
 
 /* search and reply: Dayline's composer field */
-.msg-field { padding: 8px 12px; border-radius: 12px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.08); }
 .msg-composer { padding: 5px 5px 5px 12px; }
 .msg-field-icon { color: @muted; font-size: 14px; }
 .msg-search-entry, .msg-reply-entry { color: @fg; caret-color: @accent; font-size: 13px; }
 .msg-search-entry selection, .msg-reply-entry selection, .msg-text selection { background-color: alpha(@accent, 0.45); color: @fg; }
 .msg-reply-entry:disabled { color: alpha(@fg, 0.40); }
-.msg-placeholder { color: alpha(@fg, 0.40); font-size: 13px; }
 .msg-send { min-width: 28px; min-height: 28px; border-radius: 999px; color: alpha(@fg, 0.40); background-color: alpha(@fg, 0.08);
   transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .msg-send label { font-size: 15px; }

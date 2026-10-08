@@ -15,7 +15,6 @@ from typing import Any
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.entry import Entry
-from fabric.widgets.overlay import Overlay
 from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import Gdk, GLib, Gtk, Pango
 
@@ -23,9 +22,9 @@ from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_ti
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
-from shared.ui import Glider, MonthPages, nav_button, weekday_heads
-from shared.widgets import css, flag, run, slide, text
-from shared.window import PopupWindow
+from shared.ui import DateHeading, Glider, HintEntry, MonthView, icon_button, lift_inner
+from shared.widgets import css, flag, line, run, slide, text, wrapped
+from shared.window import FocusPopup
 
 PRIORITY_MARK = {9: "!", 5: "!!", 1: "!!!"}  # Apple: 9 low, 5 medium, 1 high
 PRIORITY_CYCLE = [0, 9, 5, 1]
@@ -39,15 +38,10 @@ def relative(day: date, today: date) -> str:
 
 
 def note_text(value: str, wide: bool, *classes: str) -> Gtk.Label:
-    label = text(value, "dayline-text", *classes, xalign=0)
-    label.set_hexpand(True)
     if wide:  # up next, details: one line
-        label.set_ellipsize(Pango.EllipsizeMode.END)
-        label.set_max_width_chars(1)
-    else:
-        label.set_line_wrap(True)
-        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        label.set_max_width_chars(30)  # the day column's width, so long notes wrap instead of widening it
+        return line(value, "dayline-text", *classes)
+    label = wrapped(value, "dayline-text", *classes, chars=30)  # the day column's width, so long notes wrap instead of widening it
+    label.set_hexpand(True)
     return label
 
 
@@ -59,10 +53,10 @@ def list_dot(color: str) -> Gtk.Label:
     return dot
 
 
-class DaylineWindow(PopupWindow):
+class DaylineWindow(FocusPopup):
     def __init__(self, monitor: Monitor, clock: ClockState, notes: Notes):
         self.notes = notes
-        self.now = mock.NOW if mock.ENABLED else datetime.now()
+        self.now = mock.now()
         self.today = self.selected = self.now.date()
         self.undated = False  # the "No date" section is the target instead of the picked day
         self.month = month_start(self.today)
@@ -81,48 +75,32 @@ class DaylineWindow(PopupWindow):
         self.tabs.set_no_show_all(True)
 
         # left: month grid with a dot under days that have notes, then what is up next
-        self.title = text("", "cal-title", xalign=0)
-        self.back = Button(style_classes=("ui-nav", "cal-back"), child=self.title, on_clicked=lambda *_: self.pick(self.today))
-
-        def make_cell(index: int) -> tuple[Button, Gtk.Label]:
-            number = text("", "dayline-num")
-            cell = Button(
-                style_classes=("dayline-cell",),
-                child=Box(orientation="v", children=[number, text("•", "dayline-dot")]),
-                on_clicked=lambda *_: self.pick(grid_days(self.month)[index]),
-            )
-            cell.set_can_focus(False)  # keyboard stays in the entry; Alt+arrows move the day
-            return cell, number
-
-        self.pages = MonthPages(make_cell)
+        self.grid = MonthView(lambda: self.pick(self.today), lambda shift: self.show_month(month_start(self.month, shift)), self.pick)
         self.upcoming = Box(orientation="v", spacing=2)
 
         # right: the picked day, its notes, the undated ones, the composer
-        self.day_number = text("", "cal-day", xalign=0)
-        self.weekday = text("", "cal-weekday", xalign=0)
-        self.day_hint = text("", "cal-date", xalign=0)
+        self.heading = DateHeading()
         self.list = Box(orientation="v", spacing=2)
-        self.entry = Entry(h_expand=True, style_classes=("dayline-entry",))
-        self.placeholder = text("New note", "dayline-placeholder", xalign=0)  # GTK3 hides an entry's own while focused
+        self.composer = HintEntry("New note", "dayline-entry")
+        self.entry = self.composer.entry
         self.time = Entry(style_classes=("dayline-time-entry",))
         self.time.set_placeholder_text("time")
         self.time.set_width_chars(5)
         self.time.set_max_length(5)
         self.time.set_alignment(1)
-        self.prio = Button(style_classes=("dayline-prio",), child=text("!"), on_clicked=lambda *_: self.cycle_priority())
+        self.prio = icon_button("!", lambda *_: self.cycle_priority(), "dayline-prio")
         self.chip_dot, self.chip_title = Box(), text("", "dayline-chip-title")
         self.chip_title.set_ellipsize(Pango.EllipsizeMode.END)
         self.chip_title.set_max_width_chars(9)
         self.chip = Button(style_classes=("dayline-chip",), child=Box(spacing=5, children=[self.chip_dot, self.chip_title]),
                            tooltip_text="List · click to change", on_clicked=lambda *_: self.cycle_target())
         self.chip.set_no_show_all(True)
-        for button in (self.prio, self.chip):
-            button.set_can_focus(False)
+        self.chip.set_can_focus(False)
         self.desc = Entry(h_expand=True, style_classes=("dayline-desc-entry",))
         self.desc.set_placeholder_text("Details")
         self.details = slide(self.desc, "down")
-        self.input = Box(orientation="v", style_classes=("dayline-input",), children=[
-            Box(spacing=8, children=[Overlay(child=self.entry, overlays=[self.placeholder], h_expand=True), self.prio, self.chip, self.time]),
+        self.input = Box(orientation="v", style_classes=("ui-input", "dayline-input"), children=[
+            Box(spacing=8, children=[self.composer, self.prio, self.chip, self.time]),
             self.details,
         ])
         self.caption = text("", "dayline-caption", xalign=0)
@@ -151,8 +129,7 @@ class DaylineWindow(PopupWindow):
         scroller = ScrolledWindow(h_scrollbar_policy="never", v_scrollbar_policy="automatic", child=self.list, v_expand=True)
         scroller.set_size_request(-1, 120)  # gives way to the picker; the month column sets the height
         self.month_box = Box(orientation="v", spacing=6, style_classes=("dayline-month",), children=[
-            Box(children=[self.back, Box(h_expand=True), self.nav("", -1), self.nav("", 1)]),
-            Box(orientation="v", children=[weekday_heads(grid_days(self.month)), self.pages]),
+            self.grid,
             Box(orientation="v", spacing=6, style_classes=("dayline-next",), children=[text("Up next", "dayline-section", xalign=0), self.upcoming]),
         ])
         panel = Box(orientation="v", spacing=14, style_classes=("dayline",), children=[
@@ -160,33 +137,19 @@ class DaylineWindow(PopupWindow):
             Box(spacing=28, children=[
                 self.month_box,
                 Box(orientation="v", spacing=10, h_expand=True, style_classes=("dayline-day",), children=[
-                    Box(spacing=12, children=[self.day_number, Box(orientation="v", valign="center", children=[self.weekday, self.day_hint])]),
+                    self.heading,
                     scroller,
                     Box(orientation="v", spacing=6, children=[self.picker, self.input, self.caption]),
                 ]),
             ]),
         ])
-        super().__init__(
-            monitor,
-            title="dayline",
-            dismissible=True,
-            hotkey="c",
-            geometry="top",
-            margin=f"{monitor.height // 6}px 0px 0px 0px",
-            size=(700, -1),
-            child=panel,
-        )
-        self.clip_to(20, panel)
+        super().__init__(monitor, "dayline", "c", panel, drop=6, width=700)
         self.add_events(Gdk.EventMask.SCROLL_MASK)
         self.connect("scroll-event", self.on_scroll)  # the notes list scrolls itself first
         self.connect("show", lambda *_: self.open())
         self.connect("hide", lambda *_: self.commit_delete())
-        self.connect("map-event", lambda *_: self.take_focus())
         clock.subscribe(self.on_clock)
         notes.subscribe(lambda *_: self.render())
-
-    def nav(self, glyph: str, shift: int) -> Button:
-        return nav_button(glyph, lambda *_: self.show_month(month_start(self.month, shift)))
 
     def open(self) -> None:
         self.cancel_edit()
@@ -295,7 +258,6 @@ class DaylineWindow(PopupWindow):
     # composer
 
     def on_typing(self) -> None:
-        self.placeholder.set_visible(not self.entry.get_text())
         flag(self.input, "invalid", False)
         self.render_composer()
         self.render_caption()
@@ -306,9 +268,7 @@ class DaylineWindow(PopupWindow):
         self.render_composer()
 
     def slot(self, label: str, on_pick: Any) -> Button:
-        button = Button(style_classes=("dayline-slot",), child=text(label), on_clicked=lambda *_: on_pick())
-        button.set_can_focus(False)  # clicks keep focus in the time field, so the picker stays open
-        return button
+        return icon_button(label, lambda *_: on_pick(), "dayline-slot")  # no focus: the time field keeps it, so the picker stays open
 
     def set_time(self, hour: int | None = None, minute: int | None = None, clear: bool = False) -> None:
         """An hour keeps the picked minutes (or :00); a minute keeps the hour (or the current one) and closes."""
@@ -407,26 +367,12 @@ class DaylineWindow(PopupWindow):
         self.render_tabs()
         notes = self.shown()
 
-        self.title.set_markup(f'{self.month:%B} <span fgalpha="64%">{self.month.year}</span>')
-        flag(self.back, "away", self.selected != self.today or self.month != month_start(self.today))
         busy = {note.day for note in notes if note.day and not note.done}
         late = {note.day for note in notes if note.overdue(self.now)}
-
-        def fill(cells: list[tuple[Button, Gtk.Label]]) -> None:
-            for (cell, number), day in zip(cells, grid_days(self.month)):
-                number.set_text(str(day.day))
-                flag(cell, "outside", day.month != self.month.month)
-                flag(cell, "today", day == self.today)
-                flag(cell, "selected", day == self.selected and not self.undated)
-                flag(cell, "busy", day.isoformat() in busy)
-                flag(cell, "overdue", day.isoformat() in late)
-
-        self.pages.show(self.direction, fill)
+        self.grid.render(self.month, grid_days(self.month), self.today, self.direction, away=self.selected != self.today or self.month != month_start(self.today),
+                       marks=lambda day: {"selected": day == self.selected and not self.undated, "busy": day.isoformat() in busy, "overdue": day.isoformat() in late})
         self.direction = 0
-
-        self.day_number.set_text(str(self.selected.day))
-        self.weekday.set_text(self.selected.strftime("%A"))
-        self.day_hint.set_text(f"{self.selected:%B %Y} · {relative(self.selected, self.today)}")
+        self.heading.set_day(self.selected, f"{self.selected:%B %Y} · {relative(self.selected, self.today)}")
 
         for child in self.list.get_children():
             child.destroy()
@@ -503,8 +449,7 @@ class DaylineWindow(PopupWindow):
             self.details.unreveal()
 
     def row(self, note: Note, when: str, on_click: Any, wide: bool = False) -> Button:
-        remove = Button(style_classes=("dayline-delete",), child=text("󰅖"), on_clicked=lambda *_: self.delete(note), tooltip_text="Delete")
-        remove.set_can_focus(False)
+        remove = icon_button("󰅖", lambda *_: self.delete(note), "dayline-delete", tooltip="Delete")
         marks = [text(PRIORITY_MARK[note.priority], "dayline-mark-priority", f"p{note.priority}")] if note.priority in PRIORITY_MARK else []
         if note.flagged:
             marks.append(text("󰈻", "dayline-mark-flag"))
@@ -517,15 +462,11 @@ class DaylineWindow(PopupWindow):
         body = [Box(spacing=6, children=[label, Box(spacing=4, valign="start", children=marks)])]
         if note.desc and not wide:
             body.append(note_text(note.desc, True, "dayline-desc"))
-        inner = [remove]
         if wide:  # up next stacks the note over its date
             content = Box(orientation="v", h_expand=True, children=[*body, text(when, "dayline-when", xalign=0)])
         else:  # the day list: done circle, time column, the note
-            check = Button(style_classes=("dayline-check",), child=text("󰗠" if note.done else "󰄰"),
-                           tooltip_text=("Not done" if note.done else "Next time" if note.repeat and note.day else "Done"),
-                           on_clicked=lambda *_: self.notes.toggle_done(note.id))
-            check.set_can_focus(False)
-            inner.append(check)
+            check = icon_button("󰗠" if note.done else "󰄰", lambda *_: self.notes.toggle_done(note.id), "dayline-check",
+                                tooltip="Not done" if note.done else "Next time" if note.repeat and note.day else "Done")
             content = Box(spacing=8, h_expand=True, children=[
                 check,
                 *([text(when, "dayline-when", "time", xalign=0)] if when else []),
@@ -537,9 +478,7 @@ class DaylineWindow(PopupWindow):
             on_clicked=lambda *_: on_click(note),
         )
         row.set_can_focus(False)
-        # GTK3 maps a button's input window above its children: lift the inner buttons' back on top,
-        # or the row takes their clicks
-        row.connect_after("map", lambda *_: [button.get_event_window().raise_() for button in inner if button.get_event_window()])
+        lift_inner(row)
         flag(row, "past", bool(note.when and note.when <= self.now) or bool(note.day and date.fromisoformat(note.day) < self.today))
         flag(row, "done", bool(note.done))
         flag(row, "overdue", note.overdue(self.now))

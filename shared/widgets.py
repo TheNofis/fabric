@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from typing import Any
 
 from fabric.widgets.box import Box
 from fabric.widgets.eventbox import EventBox
 from fabric.widgets.label import Label
 from fabric.widgets.revealer import Revealer
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 from services import mock
 
@@ -61,12 +62,56 @@ def text(value: str = "", *classes: str, xalign: float | None = None) -> Label:
     return label
 
 
+def line(value: str, *classes: str, lines: int = 1, chars: int = 1, xalign: float = 0) -> Label:
+    """Label that never widens its column: ellipsized after `lines` lines; chars caps its natural width."""
+    label = text(value, *classes, xalign=xalign)
+    label.set_ellipsize(Pango.EllipsizeMode.END)
+    label.set_max_width_chars(chars)  # the column, not the text, sets the width
+    label.set_hexpand(True)
+    if lines > 1:
+        label.set_line_wrap(True)
+        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        label.set_lines(lines)
+    return label
+
+
+def wrapped(value: str, *classes: str, chars: int, xalign: float = 0) -> Label:
+    """Label that wraps at `chars` (inside a long word too) instead of widening its column."""
+    label = text(value, *classes, xalign=xalign)
+    label.set_line_wrap(True)
+    label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+    label.set_max_width_chars(chars)
+    return label
+
+
+def say(label: Gtk.Label, message: str, failed: bool = False) -> None:
+    """Hint line under a form: hidden while empty, flagged "failed" for an error."""
+    label.set_text(message)
+    flag(label, "failed", failed)
+    label.set_visible(bool(message))
+
+
+def short_time(timestamp: float, today: datetime) -> str:
+    """List time: 14:05, Yesterday, Mon, 5 Oct, 5 Oct 2025."""
+    moment = datetime.fromtimestamp(timestamp)
+    days = (today.date() - moment.date()).days
+    if days <= 0:
+        return f"{moment:%H:%M}"
+    if days == 1:
+        return "Yesterday"
+    return f"{moment:%a}" if days < 7 else f"{moment.day} {moment:%b}" if moment.year == today.year else f"{moment.day} {moment:%b %Y}"
+
+
 def toggle_mute(*_: Any) -> None:
     run("wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle")
 
 
 def volume_icon(volume: int, muted: bool) -> str:
     return "󰖁" if muted else "󰕿" if volume < 34 else "󰖀" if volume < 67 else "󰕾"
+
+
+def brightness_icon(brightness: int) -> str:
+    return "󰃞" if brightness < 34 else "󰃟" if brightness < 67 else "󰃠"
 
 
 def volume_text(volume: int, muted: bool) -> str:

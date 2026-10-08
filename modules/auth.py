@@ -18,7 +18,7 @@ from services import askpass, keyring, polkit
 from services import mock
 from services.monitors import Monitor
 from shared.ui import button, password_entry, password_field
-from shared.widgets import flag, text
+from shared.widgets import flag, say, text, wrapped
 from shared.window import PopupWindow
 
 
@@ -36,10 +36,8 @@ class AuthWindow(PopupWindow):
         self.agent: Any = None
         self.failure, self.busy, self.caps = "", False, False
         self.title = text("", "auth-title")
-        self.message = text("", "auth-message")
-        self.message.set_line_wrap(True)
+        self.message = wrapped("", "auth-message", chars=40, xalign=0.5)
         self.message.set_justify(Gtk.Justification.CENTER)
-        self.message.set_max_width_chars(40)
         self.label = text("", "auth-label")
         for label in (self.message, self.label):
             label.set_no_show_all(True)
@@ -126,9 +124,7 @@ class AuthWindow(PopupWindow):
             parts = [self.failure] if self.failure else []
             if self.caps and self.input.get_visible():
                 parts.append("Caps Lock is on")
-        self.hint.set_text(" · ".join(parts))
-        self.hint.set_visible(bool(parts))
-        flag(self.hint, "failed", bool(self.failure) and not self.busy)
+        say(self.hint, " · ".join(parts), bool(self.failure) and not self.busy)
 
     def _submit(self) -> None:
         if not self.ok_button.get_sensitive() or self.agent is None:

@@ -12,13 +12,13 @@ from urllib.parse import unquote, urlparse
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
 from fabric.widgets.image import Image
-from gi.repository import GdkPixbuf, GLib, Pango
+from gi.repository import GdkPixbuf, GLib
 
 from services.monitors import Monitor
 from services.state import JsonState
 from shared.constants import POPUP_TOP, SCRIPTS
 from shared.ui import meter
-from shared.widgets import run, text
+from shared.widgets import line, run, text
 from shared.window import PopupWindow
 
 
@@ -54,8 +54,9 @@ def bluez_cover(path: str) -> str:
 class MusicWindow(PopupWindow):
     def __init__(self, monitor: Monitor, music: JsonState):
         self.status = text("Stopped", "music-popup-kicker", xalign=0)
-        self.track = text("No media player", "music-popup-title", xalign=0)
-        self.artist = text("Start a player to see track details", "music-popup-artist", xalign=0)
+        # line(): long titles ellipsize inside the fixed popup instead of widening the window
+        self.track = line("No media player", "music-popup-title")
+        self.artist = line("Start a player to see track details", "music-popup-artist")
         # which player the popup drives; click hands off to the next one (PC <-> iPhone)
         self.source = Button(style_classes=("music-source",), tooltip_text="Switch player", visible=False)
         self.source.set_no_show_all(True)  # update() owns its visibility
@@ -74,11 +75,6 @@ class MusicWindow(PopupWindow):
         self.anchor: tuple[float, float] = (0.0, time.monotonic())  # (position µs, monotonic time)
         self.length, self.playing, self.track_key = 1, False, ""
         self.ticker = 0
-        for label in (self.track, self.artist):
-            # max_width_chars caps the natural width so long titles ellipsize
-            # inside the fixed popup instead of widening the window.
-            label.set_ellipsize(Pango.EllipsizeMode.END)
-            label.set_max_width_chars(1)
 
         def control(action: str) -> Callable[..., None]:
             return lambda *_: run(str(SCRIPTS / "music.sh"), action)

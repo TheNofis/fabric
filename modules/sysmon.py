@@ -9,22 +9,19 @@ from typing import Any
 
 import cairo
 from fabric.widgets.box import Box
-from fabric.widgets.label import Label
 from gi.repository import Gtk
 
 from services.monitors import Monitor
 from services.state import JsonState
 from services import mock
 from services.system import SystemState, cpu_model
-from shared.constants import SCRIPTS
-from shared.ui import amount, big_value, header, meter, panel
+from shared.constants import GIB, HOT, SCRIPTS
+from shared.ui import amount, big_value, detail_row, meter, panel, section, stat_value
 from shared.widgets import css, flag, text
 from shared.window import BarPanel
 
 HISTORY = 60  # seconds of CPU load in the graph, recorded while the panel is closed too
-HOT = 80  # °C, the bar's overheat threshold
 FULL = 0.9  # a meter past this fill turns red
-GIB = 1073741824
 THERMO = "\U000F050F"  # nf-md-thermometer
 
 
@@ -32,27 +29,6 @@ def fill(value: float, total: float, bar: Gtk.ProgressBar) -> None:
     fraction = min(value / total, 1.0) if total else 0.0
     bar.set_fraction(fraction)
     flag(bar, "alert", fraction >= FULL)
-
-
-def section(kicker: str, detail: Gtk.Widget, value: Label, meta: list[Gtk.Widget], *rows: Gtk.Widget) -> Box:
-    return Box(
-        orientation="v",
-        spacing=6,
-        children=[
-            header(kicker, detail),
-            Box(children=[value, Box(h_expand=True), Box(spacing=12, valign="end", style_classes=("sysmon-meta",), children=meta)]),
-            *rows,
-        ],
-    )
-
-
-def detail_row(label: str, value: Label, bar: Gtk.ProgressBar) -> Box:
-    return Box(
-        orientation="v",
-        spacing=5,
-        style_classes=("sysmon-row",),
-        children=[Box(children=[text(label, "sysmon-label"), Box(h_expand=True), value]), bar],
-    )
 
 
 class Graph(Gtk.DrawingArea):
@@ -153,9 +129,9 @@ class SystemMonitorWindow(BarPanel):
             model = ""
 
         self.cpu = big_value()
-        self.cpu_temp = text("", "sysmon-value")
-        self.freq = text("", "sysmon-value")
-        self.load = text("", "sysmon-value")
+        self.cpu_temp = stat_value()
+        self.freq = stat_value()
+        self.load = stat_value()
         self.graph = Graph(history)
         self.cores = Cores()
         cpu = section(
@@ -164,13 +140,13 @@ class SystemMonitorWindow(BarPanel):
             self.cpu,
             [self.cpu_temp, self.freq, self.load],
             self.graph,
-            Box(orientation="v", spacing=4, style_classes=("sysmon-row",), children=[text("Cores", "sysmon-label", xalign=0), self.cores]),
+            Box(orientation="v", spacing=4, style_classes=("ui-stat-row",), children=[text("Cores", "ui-stat-label", xalign=0), self.cores]),
         )
 
         self.memory = big_value()
-        self.memory_total = text("", "sysmon-value")
+        self.memory_total = stat_value()
         self.memory_meter = meter()
-        self.swap = text("", "sysmon-value")
+        self.swap = stat_value()
         self.swap_meter = meter("thin")
         memory = section(
             "Memory",
@@ -183,10 +159,10 @@ class SystemMonitorWindow(BarPanel):
 
         self.gpu_name = text("", "ui-detail")
         self.gpu = big_value()
-        self.gpu_temp = text("", "sysmon-value")
-        self.power = text("", "sysmon-value")
+        self.gpu_temp = stat_value()
+        self.power = stat_value()
         self.power.set_no_show_all(True)
-        self.vram = text("", "sysmon-value")
+        self.vram = stat_value()
         self.vram_meter = meter("thin")
         self.gpu_section = section(
             "GPU",
@@ -198,8 +174,8 @@ class SystemMonitorWindow(BarPanel):
         self.gpu_section.set_no_show_all(True)  # shown once gpu.sh reports a card
 
         self.disk = big_value()
-        self.disk_total = text("", "sysmon-value")
-        self.disk_temp = text("", "sysmon-value")
+        self.disk_total = stat_value()
+        self.disk_temp = stat_value()
         self.disk_meter = meter()
         disk = section("Disk", text("/", "ui-detail"), self.disk, [self.disk_total, self.disk_temp], self.disk_meter)
 

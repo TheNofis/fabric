@@ -7,7 +7,7 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any, Callable
 from types import SimpleNamespace
 
@@ -25,8 +25,8 @@ from services import mock
 from services.system import ClockState
 from services.tether import code_in
 from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP, RUNTIME
-from shared.ui import meter
-from shared.widgets import copy_text, css, flag, slide, text
+from shared.ui import Confirm, meter
+from shared.widgets import copy_text, css, flag, line, short_time, slide, text, wrapped
 from shared.window import OverlayWindow, PopupWindow
 
 
@@ -64,13 +64,6 @@ def unpng(data: str | None) -> GdkPixbuf.Pixbuf | None:
     loader.write(base64.b64decode(data))
     loader.close()
     return loader.get_pixbuf()
-
-
-def stamp(timestamp: float) -> str:
-    moment = datetime.fromtimestamp(timestamp)
-    if moment.date() == date.today():
-        return moment.strftime("%H:%M")
-    return "Yesterday" if moment.date() == date.today() - timedelta(days=1) else moment.strftime("%a %d")
 
 
 def app_icon(notification: Any) -> GdkPixbuf.Pixbuf | None:
@@ -149,14 +142,6 @@ def body_markup(body: str) -> str:
     return markup if LINK.search(markup) else URL.sub(lambda m: f'<a href="{m[0]}">{m[0]}</a>', markup)
 
 
-def action_label(label: str) -> Gtk.Label:
-    widget = text(label)
-    # ellipsized with a tiny natural width: a long label shrinks its segment, never widens the card
-    widget.set_ellipsize(Pango.EllipsizeMode.END)
-    widget.set_max_width_chars(1)
-    return widget
-
-
 class NotificationCard(EventBox):
     def __init__(
         self,
@@ -170,13 +155,9 @@ class NotificationCard(EventBox):
         if center or record.persistent:  # never expires: nothing to count down
             progress.hide()
             progress.set_no_show_all(True)
-        title = text(record.title, "notification-title", xalign=0)
-        self.body = body = text("", "notification-body", xalign=0)
+        title = wrapped(record.title, "notification-title", chars=32)
+        self.body = body = wrapped("", "notification-body", chars=45)
         body.set_markup(body_markup(record.body))
-        title.set_line_wrap(True)
-        title.set_max_width_chars(32)
-        body.set_line_wrap(True)
-        body.set_max_width_chars(45)
         card = Box(
             orientation="v",
             spacing=4,
@@ -204,7 +185,7 @@ class NotificationCard(EventBox):
                                 title,
                             ],
                         ),
-                        text(stamp(record.time), "notification-time"),
+                        text(short_time(record.time, datetime.now()), "notification-time"),
                         Button(label="×", style_classes=("notification-close",), on_clicked=lambda *_: close(record)),
                     ],
                 ),
@@ -216,7 +197,8 @@ class NotificationCard(EventBox):
                     style_classes=("notification-buttons",),
                     children=[
                         Button(
-                            child=Gtk.Image.new_from_icon_name(label, Gtk.IconSize.BUTTON) if record.icon_buttons else action_label(label),
+                            # a long label shrinks its segment, never widens the card
+                            child=Gtk.Image.new_from_icon_name(label, Gtk.IconSize.BUTTON) if record.icon_buttons else line(label, xalign=0.5),
                             h_expand=True,
                             style_classes=("notification-button",),
                             on_clicked=lambda *_, action=action: activate(record, action),
@@ -246,8 +228,6 @@ class NotificationHub:
         self.paused: dict[int, tuple[float, float]] = {}  # hovered: id -> (remaining s, timeout s)
         self.progress_timer = 0
         self.save_timer = 0
-        self.clear_timer = 0
-        self.clear_armed = False
         self.dnd = False if mock.ENABLED else DND_FILE.exists()
         self.history = Box(orientation="v", spacing=10)
         self.empty = text("No notifications", "notification-empty")
@@ -269,13 +249,12 @@ class NotificationHub:
             child=Box(h_align="center", children=[text("󰃢"), self.clear_reveal]),  # centered: the folded label is 0px wide
             tooltip_text="Clear all",
             style_classes=("notification-action", "notification-clear"),
-            on_clicked=lambda *_: self.clear() if self.clear_armed else self.arm_clear(True),
         )
+        self.clear_confirm = Confirm(self.clear_button, self.clear, self.on_arm_clear)
         self.clear_button.set_sensitive(False)
         for button in (self.dnd_button, self.clear_button):
             button.set_can_focus(False)  # pointer-only; otherwise opening the center rings the first one
             button.set_valign(Gtk.Align.CENTER)  # 36px pills, not stretched to the clock's height
-        self.clear_button.connect("leave-notify-event", lambda _w, event: event.detail != Gdk.NotifyType.INFERIOR and self.arm_clear(False))
         time_label = text("", "notification-center-time", xalign=0)
         date_label = text("", "notification-center-date", xalign=0)
         clock.subscribe(lambda now: (time_label.set_text(now.strftime("%H:%M")), date_label.set_text(now.strftime("%a %d %b"))))
@@ -323,7 +302,7 @@ class NotificationHub:
         )
         self.popup_window.clip_to(18, self.popups, parts=lambda: self.popups.children)
         self.center_window.clip_to(24, center_body)
-        self.center_window.connect("hide", lambda *_: self.arm_clear(False))
+        self.center_window.connect("hide", lambda *_: self.clear_confirm.arm(False))
         self.service = SimpleNamespace(notifications={}) if mock.ENABLED else Notifications(on_notification_added=self.add)
         # closed by the app (CloseNotification) or by us: drop the popup, keep history
         if not mock.ENABLED:
@@ -486,18 +465,12 @@ class NotificationHub:
         self.remove_popup(notification_id)
         self.save()
 
-    def arm_clear(self, on: bool) -> bool:
-        # disarms on its own after 3s, when the pointer leaves the button, or when the center closes
-        if self.clear_timer:
-            GLib.source_remove(self.clear_timer)
-        self.clear_timer = GLib.timeout_add_seconds(3, lambda: setattr(self, "clear_timer", 0) or self.arm_clear(False)) if on else 0
-        self.clear_armed = on
+    def on_arm_clear(self, on: bool) -> None:
+        # Confirm disarms after 3s or when the pointer leaves the button; closing the center does too
         if on:
             self.clear_label.set_text(f"Clear {len(self.records)}?")
-        flag(self.clear_button, "armed", on)
         self.clear_reveal.set_reveal_child(on)
         self.clear_button.set_tooltip_text(None if on else "Clear all")
-        return False
 
     def activate(self, record: NotificationRecord, action: str) -> None:
         code = code_in(f"{record.title} {record.body}") if action == "copy-code" else None
@@ -524,7 +497,7 @@ class NotificationHub:
         self.remove_record(record.id)
 
     def clear(self) -> None:
-        self.arm_clear(False)
+        self.clear_confirm.arm(False)
         for notification in list(self.service.notifications.values()):
             notification.close("dismissed-by-user")
         for record in list(self.records):

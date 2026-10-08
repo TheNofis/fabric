@@ -10,40 +10,23 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
-from fabric.widgets.entry import Entry
-from fabric.widgets.overlay import Overlay
 from fabric.widgets.scrolledwindow import ScrolledWindow
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk
 
 from services import mock
 from services.monitors import Monitor
 from services.tether import Message, Tether, Thread, code_in, initials
-from shared.ui import Glider
-from shared.widgets import copy_text, css, flag, text
-from shared.window import PopupWindow
+from shared.ui import Glider, HintEntry, icon_button, lift_inner
+from shared.widgets import copy_text, flag, line, short_time, text, wrapped
+from shared.window import FocusPopup
 
 RUN_GAP = 5 * 60  # messages closer than this, same side, read as one run under one meta line
 SHOWN = 120  # a long history opens on its latest messages; "Earlier messages" shows the rest
 CODE_FRESH = 3600  # the list offers a code's copy chip only while it can still be used
-
-
-def now() -> datetime:
-    return mock.NOW if mock.ENABLED else datetime.now()
-
-
-def when(timestamp: float, today: datetime) -> str:
-    """Thread list time: 14:05, Yesterday, Mon, 5 Oct."""
-    moment = datetime.fromtimestamp(timestamp)
-    days = (today.date() - moment.date()).days
-    if days <= 0:
-        return f"{moment:%H:%M}"
-    if days == 1:
-        return "Yesterday"
-    return f"{moment:%a}" if days < 7 else f"{moment.day} {moment:%b}" if moment.year == today.year else f"{moment.day} {moment:%b %Y}"
 
 
 def day_label(moment: datetime, today: datetime) -> str:
@@ -69,6 +52,12 @@ def dialable(query: str) -> str | None:
     return f"tel:{cleaned}" if re.fullmatch(r"\+?\d{5,15}", cleaned) else None
 
 
+def empty(title: str, hint: str = "") -> Box:
+    """Centred empty state of a page: what is (not) here, and what to do about it."""
+    return Box(orientation="v", spacing=4, style_classes=("msg-empty",), valign="center", v_expand=True,
+               children=[text(title, "msg-empty-title"), *([text(hint, "msg-empty-hint")] if hint else [])])
+
+
 def avatar(name: str, *classes: str) -> Gtk.Label:
     """Initials on a neutral disc; a number or a sender without letters gets the person glyph."""
     letters = initials(name)
@@ -77,24 +66,7 @@ def avatar(name: str, *classes: str) -> Gtk.Label:
     return label
 
 
-def line(value: str, *classes: str, lines: int = 1, chars: int = 1) -> Gtk.Label:
-    label = text(value, *classes, xalign=0)
-    label.set_ellipsize(Pango.EllipsizeMode.END)
-    label.set_max_width_chars(chars)  # the column, not the text, sets the width
-    label.set_hexpand(True)
-    if lines > 1:
-        label.set_line_wrap(True)
-        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        label.set_lines(lines)
-    return label
-
-
-def lift(row: Gtk.Widget, *inner: Gtk.Widget) -> None:
-    """GTK3 maps a button's input window above its children: raise the inner buttons back on top."""
-    row.connect_after("map", lambda *_: [button.get_event_window().raise_() for button in inner if button.get_event_window()])
-
-
-class MessagesWindow(PopupWindow):
+class MessagesWindow(FocusPopup):
     def __init__(self, monitor: Monitor, tether: Tether):
         self.tether = tether
         self.items: list[tuple[str, Any]] = []  # the list's rows in order: ("thread", Thread) / ("new", (name, id))
@@ -110,10 +82,9 @@ class MessagesWindow(PopupWindow):
 
         # the conversations
         self.status = text("", "msg-status", xalign=1)
-        compose = Button(style_classes=("msg-icon-button",), child=text("󰏫"), tooltip_text="New message · Ctrl+N", on_clicked=lambda *_: self.compose())
-        compose.set_can_focus(False)
-        self.search = Entry(h_expand=True, style_classes=("msg-search-entry",))
-        self.search_hint = text("Search or start a conversation", "msg-placeholder", xalign=0)
+        compose = icon_button("󰏫", lambda *_: self.compose(), "msg-icon-button", tooltip="New message · Ctrl+N")
+        search = HintEntry("Search or start a conversation", "msg-search-entry")
+        self.search = search.entry
         self.search.connect("changed", lambda *_: self.on_search())
         self.search.connect("activate", lambda *_: self.open_cursor())
         self.rows = Box(orientation="v", spacing=1, style_classes=("msg-rows",))
@@ -122,17 +93,13 @@ class MessagesWindow(PopupWindow):
         self.list_caption = text("", "msg-caption", "msg-inset", xalign=0)
         list_page = Box(orientation="v", spacing=12, style_classes=("msg-page",), children=[
             Box(spacing=8, style_classes=("msg-inset",), children=[text("Messages", "msg-title", xalign=0), Box(h_expand=True), self.status, compose]),
-            Box(spacing=8, style_classes=("msg-field", "msg-search", "msg-inset"), children=[
-                text("󰍉", "msg-field-icon"),
-                Overlay(child=self.search, overlays=[self.search_hint], h_expand=True),
-            ]),
+            Box(spacing=8, style_classes=("ui-input", "msg-inset"), children=[text("󰍉", "msg-field-icon"), search]),
             self.list_scroll,
             self.list_caption,
         ])
 
         # one conversation
-        back = Button(style_classes=("msg-icon-button", "msg-back"), child=text("󰅁"), tooltip_text="Conversations · Esc", on_clicked=lambda *_: self.close_thread())
-        back.set_can_focus(False)
+        back = icon_button("󰅁", lambda *_: self.close_thread(), "msg-icon-button", "msg-back", tooltip="Conversations · Esc")
         self.head_avatar = Box()
         self.head_name = line("", "msg-head-name")
         self.head_detail = line("", "msg-head-detail")
@@ -143,15 +110,12 @@ class MessagesWindow(PopupWindow):
         adjustment = self.thread_scroll.get_vadjustment()
         adjustment.connect("changed", lambda a: self.pinned and a.set_value(a.get_upper() - a.get_page_size()))
         adjustment.connect("value-changed", lambda a: setattr(self, "pinned", a.get_value() >= a.get_upper() - a.get_page_size() - 24))
-        self.reply = Entry(h_expand=True, style_classes=("msg-reply-entry",))
-        self.reply_hint = text("", "msg-placeholder", xalign=0)
+        reply = HintEntry("", "msg-reply-entry")
+        self.reply, self.reply_hint = reply.entry, reply.hint
         self.reply.connect("changed", lambda *_: self.on_reply_typing())
         self.reply.connect("activate", lambda *_: self.send())
-        self.send_button = Button(style_classes=("msg-send",), child=text("󰁝"), tooltip_text="Send · Enter", on_clicked=lambda *_: self.send())
-        self.send_button.set_can_focus(False)
-        self.composer = Box(spacing=8, style_classes=("msg-field", "msg-composer"), children=[
-            Overlay(child=self.reply, overlays=[self.reply_hint], h_expand=True), self.send_button,
-        ])
+        self.send_button = icon_button("󰁝", lambda *_: self.send(), "msg-send", tooltip="Send · Enter")
+        self.composer = Box(spacing=8, style_classes=("ui-input", "msg-composer"), children=[reply, self.send_button])
         self.readonly = text("", "msg-readonly", xalign=0)
         self.readonly.set_line_wrap(True)
         self.thread_caption = text("", "msg-caption", xalign=0)
@@ -170,18 +134,8 @@ class MessagesWindow(PopupWindow):
         self.pages.add_named(thread_page, "thread")
         panel = Box(orientation="v", style_classes=("messages",), children=[self.pages])
         panel.set_size_request(480, 680)  # fixed: pushing a conversation never resizes the window
-        super().__init__(
-            monitor,
-            title="messages",
-            dismissible=True,
-            hotkey="t",
-            geometry="top",
-            margin=f"{monitor.height // 6}px 0px 0px 0px",
-            child=panel,
-        )
-        self.clip_to(20, panel)
+        super().__init__(monitor, "messages", "t", panel, drop=6)
         self.connect("show", lambda *_: self.on_open())
-        self.connect("map-event", lambda *_: self.take_focus())
         tether.subscribe(lambda *_: self.on_tether())
         tether.changed.append(self.reload_thread)
 
@@ -261,7 +215,6 @@ class MessagesWindow(PopupWindow):
                 self.render_composer()
 
     def on_search(self) -> None:
-        self.search_hint.set_visible(not self.search.get_text())
         self.cursor = 0
         self.render_list()
 
@@ -285,7 +238,7 @@ class MessagesWindow(PopupWindow):
             child.destroy()
         threads, contacts, number = self.matches()
         self.items, self.row_widgets = [], []
-        today = now()
+        today = mock.now()
         for thread in threads:
             self.add_row(("thread", thread), self.thread_row(thread, today))
         if contacts or number:
@@ -316,17 +269,13 @@ class MessagesWindow(PopupWindow):
             title, hint = "Loading conversations…", ""
         else:
             title, hint = "No messages yet", "Texts from the iPhone show up here"
-        return Box(orientation="v", spacing=4, style_classes=("msg-empty",), valign="center", v_expand=True,
-                   children=[text(title, "msg-empty-title"), *([text(hint, "msg-empty-hint")] if hint else [])])
+        return empty(title, hint)
 
     def thread_row(self, thread: Thread, today: datetime) -> Button:
         code = code_in(thread.preview) if today.timestamp() - thread.time < CODE_FRESH else None
         end: list[Gtk.Widget] = []
         if code:
-            chip = Button(style_classes=("msg-code",), child=Box(spacing=5, children=[text("󰆏"), text(code)]),
-                          tooltip_text="Copy code", on_clicked=lambda *_: self.copy(code))
-            chip.set_can_focus(False)
-            end.append(chip)
+            end.append(self.code_chip(code))
         elif thread.unread > 1:
             end.append(text(str(thread.unread), "msg-unread"))
         elif thread.unread:
@@ -340,13 +289,13 @@ class MessagesWindow(PopupWindow):
                      child=Box(spacing=12, children=[
                          avatar(thread.name),
                          Box(orientation="v", spacing=2, h_expand=True, children=[
-                             Box(spacing=8, children=[title, text(when(thread.time, today), "msg-time")]),
+                             Box(spacing=8, children=[title, text(short_time(thread.time, today), "msg-time")]),
                              Box(spacing=8, children=[preview, Box(valign="center", children=end)]),
                          ]),
                      ]))
         row.set_can_focus(False)
         flag(row, "unread", thread.unread > 0)
-        lift(row, *[widget for widget in end if isinstance(widget, Gtk.Button)])
+        lift_inner(row)
         return row
 
     def contact_row(self, name: str, address: str) -> Button:
@@ -416,6 +365,13 @@ class MessagesWindow(PopupWindow):
                         return True
         return False
 
+    def code_chip(self, code: str) -> Button:
+        """A one-time code in a text: click copies it."""
+        chip = Button(style_classes=("msg-code",), child=Box(spacing=5, children=[text("󰆏"), text(code)]),
+                      tooltip_text="Copy code", on_clicked=lambda *_: self.copy(code))
+        chip.set_can_focus(False)
+        return chip
+
     def copy(self, code: str) -> None:
         copy_text(code)
         self.flash_caption(f"Copied {code}")
@@ -476,12 +432,10 @@ class MessagesWindow(PopupWindow):
         for child in self.transcript.get_children():
             child.destroy()
         thread_id, name = self.thread[0], self.head_name.get_text()
-        today = now()
+        today = mock.now()
         messages = self.history if self.everything else self.history[-SHOWN:]
         if len(messages) < len(self.history):
-            more = Button(style_classes=("msg-earlier",), child=text(f"Earlier messages · {len(self.history) - len(messages)}"),
-                          on_clicked=lambda *_: (setattr(self, "everything", True), setattr(self, "pinned", False), self.render_transcript()))
-            more.set_can_focus(False)
+            more = icon_button(f"Earlier messages · {len(self.history) - len(messages)}", lambda *_: (setattr(self, "everything", True), setattr(self, "pinned", False), self.render_transcript()), "msg-earlier")
             more.set_halign(Gtk.Align.CENTER)
             self.transcript.add(more)
         previous: Message | None = None
@@ -498,33 +452,25 @@ class MessagesWindow(PopupWindow):
             self.transcript.add(self.meta("You", "Not sent" if item["failed"] else "Sending…", True, failed=item["failed"], retry=item))
             self.transcript.add(self.bubble(item["body"], True, pending=True))
         if not messages and not self.pending.get(thread_id):
-            self.transcript.add(Box(orientation="v", style_classes=("msg-empty",), valign="center", v_expand=True,
-                                    children=[text("Loading…" if self.loading else "No messages yet", "msg-empty-title")]))
+            self.transcript.add(empty("Loading…" if self.loading else "No messages yet"))
         self.transcript.show_all()
 
     def meta(self, who: str, stamp: str, outgoing: bool, failed: bool = False, retry: dict[str, Any] | None = None) -> Box:
         parts: list[Gtk.Widget] = [text(who, "msg-who"), text(stamp, "msg-stamp", *(("failed",) if failed else ()))]
         if failed and retry is not None:
-            again = Button(style_classes=("msg-retry",), child=text("Retry"), on_clicked=lambda *_: self.resend(retry))
-            again.set_can_focus(False)
-            parts.append(again)
+            parts.append(icon_button("Retry", lambda *_: self.resend(retry), "msg-retry"))
         box = Box(spacing=8, style_classes=("msg-meta",), children=parts)
         flag(box, "out", outgoing)
         return box
 
     def bubble(self, body: str, outgoing: bool, pending: bool = False) -> Box:
-        label = text(body, "msg-text", xalign=0)
-        label.set_line_wrap(True)
-        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        label.set_max_width_chars(46)
+        label = wrapped(body, "msg-text", chars=46)
         label.set_selectable(True)  # copy a fragment with the mouse
         label.set_can_focus(False)
         parts: list[Gtk.Widget] = [label]
         code = code_in(body)
         if code and not outgoing:
-            chip = Button(style_classes=("msg-code",), child=Box(spacing=5, children=[text("󰆏"), text(code)]),
-                          tooltip_text="Copy code", on_clicked=lambda *_: self.copy(code))
-            chip.set_can_focus(False)
+            chip = self.code_chip(code)
             chip.set_halign(Gtk.Align.START)
             parts.append(chip)
         box = Box(orientation="v", spacing=6, style_classes=("msg-message",), children=parts)
@@ -545,7 +491,6 @@ class MessagesWindow(PopupWindow):
         self.on_reply_typing()
 
     def on_reply_typing(self) -> None:
-        self.reply_hint.set_visible(not self.reply.get_text())
         flag(self.send_button, "ready", bool(self.reply.get_text().strip()))
         self.render_thread_caption()
 
@@ -579,7 +524,7 @@ class MessagesWindow(PopupWindow):
         def done(ok: bool) -> None:
             item["failed"] = not ok
             if ok and mock.ENABLED:  # no phone to echo it back: move it into the history ourselves
-                self.history.append(Message("", item["body"], True, True, now().timestamp()))
+                self.history.append(Message("", item["body"], True, True, mock.now().timestamp()))
                 self.pending[thread_id].remove(item)
             if self.thread and self.thread[0] == thread_id:
                 self.render_transcript()
@@ -601,7 +546,7 @@ def build(context: Any) -> list[Any]:
 if __name__ == "__main__":
     today = datetime(2026, 10, 8, 21, 0)
     stamps = [today.replace(hour=9), today - timedelta(days=1), today - timedelta(days=3), today - timedelta(days=30), today - timedelta(days=400)]
-    assert [when(s.timestamp(), today) for s in stamps] == ["09:00", "Yesterday", "Mon", "8 Sep", "3 Sep 2025"]
+    assert [short_time(s.timestamp(), today) for s in stamps] == ["09:00", "Yesterday", "Mon", "8 Sep", "3 Sep 2025"]
     assert [day_label(s, today) for s in stamps[:4]] == ["Today", "Yesterday", "Monday", "Tuesday, 8 September"]
     assert phone("+79220827679") == "+7 922 082-76-79" and phone("89264747777") == "8 926 474-77-77" and phone("megafon") == "megafon"
     assert dialable("+7 (922) 082-76-79") == "tel:+79220827679" and dialable("Глеб") is None and dialable("12") is None

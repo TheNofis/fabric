@@ -9,12 +9,11 @@ from fabric.widgets.box import Box
 from fabric.widgets.eventbox import EventBox
 from gi.repository import Gtk
 
-from modules.sysmon import detail_row, section
 from services.monitors import Monitor
 from services.state import JsonState
 from services.system import ClockState
 from shared.constants import SCRIPTS
-from shared.ui import amount, big_value, header, meter, panel
+from shared.ui import amount, big_value, detail_row, header, meter, panel, section, stat_value
 from shared.widgets import css, flag, hover_reveal, slide, stat, text
 from shared.window import BarPanel
 
@@ -134,10 +133,8 @@ class ClaudeWindow(BarPanel):
         self.windows: list[tuple[Any, ...]] = []
         sections = []
         for key, title, span, length in (("session", "Session", "5-hour window", SESSION), ("week", "Week", "7-day window", WEEK)):
-            big, resets, left, gauge = big_value(), text("", "sysmon-value"), text("", "sysmon-value"), PaceMeter()
-            box = section(title, text(span, "ui-detail"), big, [left], gauge, Box(style_classes=("sysmon-row",), children=[
-                text("Resets", "sysmon-label"), Box(h_expand=True), resets,
-            ]))
+            big, resets, left, gauge = big_value(), stat_value(), stat_value(), PaceMeter()
+            box = section(title, text(span, "ui-detail"), big, [left], gauge, detail_row("Resets", resets))
             self.windows.append((key, length, box, big, resets, left, gauge))
             sections.append(box)
         self.sources = Box(orientation="v", spacing=6)
@@ -171,7 +168,7 @@ class ClaudeWindow(BarPanel):
         for name, share in sources:
             bar = meter("thin")
             bar.set_fraction(share / 100)
-            rows.append(detail_row(name, text(f"{share}%", "sysmon-value"), bar))
+            rows.append(detail_row(name, stat_value(f"{share}%"), bar))
         self.sources.children = [header("Week by source"), *rows] if rows else []
         self.sources.set_visible(bool(rows))
         self.sources.show_all()

@@ -10,18 +10,16 @@ from typing import Any
 from fabric.utils.helpers import get_desktop_applications
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
-from fabric.widgets.entry import Entry
 from fabric.widgets.image import Image
 from fabric.widgets.label import Label
-from fabric.widgets.overlay import Overlay
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk
 
 from services.launcher import Item, Sources
 from services import mock
 from services.monitors import Monitor
-from shared.ui import Glider
-from shared.widgets import flag, slide, text
-from shared.window import PopupWindow
+from shared.ui import Glider, HintEntry
+from shared.widgets import flag, line, slide, text
+from shared.window import FocusPopup
 
 
 def _web_icon() -> Any:
@@ -31,7 +29,7 @@ def _web_icon() -> Any:
         return "\U000F059F"  # nf-md-web
 
 
-class LauncherWindow(PopupWindow):
+class LauncherWindow(FocusPopup):
     def __init__(self, monitor: Monitor):
         self.sources = Sources()
         self.items: list[Item] = []
@@ -39,9 +37,8 @@ class LauncherWindow(PopupWindow):
         self.selected = 0
         self.armed: int | None = None  # confirm row waiting for a second Enter
         self.web_icon = _web_icon()
-        self.entry = Entry(h_expand=True, style_classes=("launcher-entry",))
-        # GTK3 hides an Entry's own placeholder while it has focus, and ours always does
-        self.placeholder = text("Search apps, sites, or calculate…", "launcher-placeholder", xalign=0)
+        search = HintEntry("Search apps, sites, or calculate…", "launcher-entry", hint_class="launcher-placeholder")
+        self.entry = search.entry
         # the prefixes the placeholder has no room for; shown only while the query is empty
         self.hint = text("> command     c: clipboard     :emoji     ssh", "launcher-hint", xalign=0)
         self.entry.connect("changed", lambda *_: self.refresh())
@@ -54,25 +51,14 @@ class LauncherWindow(PopupWindow):
             orientation="v",
             style_classes=("launcher",),
             children=[
-                Box(spacing=10, style_classes=("launcher-search",), children=[text("\U000F0349", "launcher-icon"), Overlay(child=self.entry, overlays=[self.placeholder], h_expand=True)]),
+                Box(spacing=10, style_classes=("launcher-search",), children=[text("\U000F0349", "launcher-icon"), search]),
                 self.hint,
                 self.reveal,
             ],
         )
-        super().__init__(
-            monitor,
-            title="fabric-launcher",
-            dismissible=True,
-            hotkey="d",
-            geometry="top",
-            margin=f"{monitor.height // 4}px 0px 0px 0px",
-            size=(520, -1),
-            child=panel,
-        )
-        self.clip_to(20, panel)
+        super().__init__(monitor, "fabric-launcher", "d", panel, drop=4, width=520)
         self.connect("key-press-event", self._on_nav)
         self.connect("show", lambda *_: self._open())
-        self.connect("map-event", lambda *_: self.take_focus())
 
     def _open(self) -> None:
         # ponytail: rescans .desktop files on every open (~ms); cache + Gio.AppInfoMonitor if it ever lags
@@ -83,7 +69,6 @@ class LauncherWindow(PopupWindow):
 
     def refresh(self) -> None:
         query = self.entry.get_text()
-        self.placeholder.set_visible(not query)
         self.hint.set_visible(not query)
         self.items = self.sources.search(query, lambda app: app.get_icon_pixbuf(28, "application-x-executable"), self.web_icon)
         self.selected, self.armed, self.labels = 0, None, []
@@ -91,17 +76,11 @@ class LauncherWindow(PopupWindow):
             child.destroy()
         for index, item in enumerate(self.items):
             icon = text(item.icon, "launcher-glyph") if isinstance(item.icon, str) else Image(pixbuf=item.icon)
-            name = text(item.label, "launcher-name", xalign=0)
-            name.set_ellipsize(Pango.EllipsizeMode.END)
-            # caps the natural width so long clipboard entries ellipsize instead of widening the window
-            name.set_max_width_chars(1)
-            name.set_hexpand(True)
+            name = line(item.label, "launcher-name")  # long clipboard entries ellipsize instead of widening the window
             self.labels.append(name)
             body: Any = name
             if item.detail:
-                detail = text(item.detail, "launcher-detail", xalign=0)
-                detail.set_ellipsize(Pango.EllipsizeMode.END)
-                body = Box(orientation="v", h_expand=True, children=[name, detail])
+                body = Box(orientation="v", h_expand=True, children=[name, line(item.detail, "launcher-detail")])
             row = Button(
                 style_classes=("launcher-row",),
                 child=Box(spacing=10, children=[icon, body]),

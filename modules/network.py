@@ -14,8 +14,8 @@ from services.monitors import Monitor
 from services.state import JsonState, State
 from services import mock
 from shared.constants import SCRIPTS
-from shared.ui import big_value, button, check, header, list_row, panel, password_entry, password_field, row_list, switch
-from shared.widgets import flag, text
+from shared.ui import big_value, button, check, header, icon_button, list_row, panel, password_entry, password_field, row_list, switch
+from shared.widgets import flag, say, text
 from shared.window import BarPanel
 
 MAX_NETWORKS = 8  # ponytail: strongest N only; a scrolled list if a crowded place needs more
@@ -182,8 +182,7 @@ class NetworkWindow(BarPanel):
         needs_password = n["secure"] and not n["known"]
         menu = (lambda: self.toggle_options(ssid)) if n["known"] and not self.asking else None
         if menu and not n["active"] and ssid != self.pending:
-            more = Button(label="\U000F01D8", style_classes=("net-more",), tooltip_text="Options", on_clicked=lambda *_: menu())  # nf-md-dots_horizontal
-            more.set_can_focus(False)
+            more = icon_button("\U000F01D8", lambda *_: menu(), "net-more", tooltip="Options")  # nf-md-dots_horizontal
             end = Box(spacing=6, children=[end, more])
         if n["active"]:
             click, tooltip = menu and (lambda *_: menu()), "Options"
@@ -251,9 +250,7 @@ class NetworkWindow(BarPanel):
             self.entry.grab_focus()
 
     def set_hint(self, message: str, error: bool = False) -> None:
-        self.hint.set_text(message)
-        flag(self.hint, "error", error)
-        self.hint.set_visible(bool(message))
+        say(self.hint, message, error)
 
     def join(self, ssid: str, password: str = "") -> None:
         if not ssid:

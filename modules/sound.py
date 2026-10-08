@@ -7,8 +7,6 @@ from typing import Any
 
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
-from fabric.widgets.scale import Scale
-from gi.repository import GLib
 
 from services.monitors import Monitor
 from services.state import JsonState
@@ -51,13 +49,10 @@ class Channel(Box):
         self.target = target
         self.output = target == "sink"
         self.shown: list[tuple[str, str, str, bool]] | None = None
-        self.pending = 0
-        self.syncing = False
 
         self.big = big_value()
         self.mute = Button(style_classes=("sound-mute",), on_clicked=lambda *_: run("pactl", f"set-{target}-mute", f"@DEFAULT_{target.upper()}@", "toggle"))
-        self.scale = slider()
-        self.scale.connect("value-changed", self.on_drag)
+        self.scale = slider(on_change=lambda value: run("pactl", f"set-{target}-volume", f"@DEFAULT_{target.upper()}@", f"{value}%"))
         self.list = row_list()
         super().__init__(
             orientation="v",
@@ -69,16 +64,6 @@ class Channel(Box):
                 self.list,
             ],
         )
-
-    # Dragging emits dozens of value-changed per second: apply at most every 50ms, with the latest position.
-    def on_drag(self, _scale: Scale) -> None:
-        if not self.syncing and not self.pending:
-            self.pending = GLib.timeout_add(50, self.apply)
-
-    def apply(self) -> bool:
-        self.pending = 0
-        run("pactl", f"set-{self.target}-volume", f"@DEFAULT_{self.target.upper()}@", f"{int(self.scale.value)}%")
-        return False
 
     def update(self, items: list[dict[str, Any]]) -> None:
         current = next((item for item in items if item["default"]), None)
@@ -94,10 +79,7 @@ class Channel(Box):
         self.mute.set_tooltip_text("Unmute" if muted else "Mute")
         flag(self.mute, "active", muted)
         flag(self.scale, "dim", muted)
-        if not self.pending:  # the user is dragging; don't yank the slider back to a stale value
-            self.syncing = True
-            self.scale.value = min(volume, 100)
-            self.syncing = False
+        self.scale.sync(min(volume, 100))
 
         # rebuild the rows only when the list itself changes, not on every volume step
         shown = [(item["name"], item["label"], item["kind"], item["default"]) for item in items]

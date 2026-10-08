@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from fabric.widgets.scale import Scale
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from shared.widgets import css
 
@@ -19,9 +19,36 @@ def switch(on_change: Callable[[Gtk.Switch, bool], bool], *classes: str) -> Gtk.
     return widget
 
 
-def slider(*classes: str, max_value: int = 100, **kwargs: Any) -> Scale:
+class Slider(Scale):
+    """Scale driving a backend. A drag emits dozens of value-changed per second: on_change(value) runs
+    at most every 50ms, with the latest position. sync(value) follows the backend without echoing
+    back to it, and leaves the knob alone while the user drags."""
+
+    def __init__(self, on_change: Callable[[int], Any] | None, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.on_change, self.pending, self.syncing = on_change, 0, False
+        self.connect("value-changed", self._drag)
+
+    def _drag(self, *_: Any) -> None:
+        if self.on_change and not self.syncing and not self.pending:
+            self.pending = GLib.timeout_add(50, self._apply)
+
+    def _apply(self) -> bool:
+        self.pending = 0
+        self.on_change(int(self.get_value()))
+        return False
+
+    def sync(self, value: float) -> None:
+        if self.pending:
+            return  # the user is dragging; don't yank the knob back to a stale value
+        self.syncing = True
+        self.set_value(value)
+        self.syncing = False
+
+
+def slider(*classes: str, max_value: int = 100, min_value: int = 0, on_change: Callable[[int], Any] | None = None, **kwargs: Any) -> Slider:
     kwargs.setdefault("h_expand", "size" not in kwargs)
-    return Scale(min_value=0, max_value=max_value, style_classes=("ui-slider", *classes), **kwargs)
+    return Slider(on_change, min_value=min_value, max_value=max_value, style_classes=("ui-slider", *classes), **kwargs)
 
 
 class Tween:

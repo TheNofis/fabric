@@ -205,6 +205,17 @@ class PopupWindow(MonitorWindow):
         self.hide() if self.get_visible() else self.show_all()
 
 
+class FocusPopup(PopupWindow):
+    """Dismissible popup centred near the top that takes the keyboard (launcher, Dayline, Messages):
+    monitor.height // drop below the top edge, shaped to `child` with the panel radius."""
+
+    def __init__(self, monitor: Monitor, title: str, hotkey: str, child: Gtk.Widget, drop: int, width: int = -1, radius: int = 20):
+        super().__init__(monitor, title=title, dismissible=True, hotkey=hotkey, geometry="top",
+                         margin=f"{monitor.height // drop}px 0px 0px 0px", size=(width, -1), child=child)
+        self.clip_to(radius, child)
+        self.connect("map-event", lambda *_: self.take_focus())
+
+
 class BarPanel(PopupWindow):
     """Dropdown under a bar slot (calendar, system monitor), like a macOS menu extra.
 
