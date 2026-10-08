@@ -326,15 +326,12 @@ tooltip {
 .volume-osd-glyph { color: @fg; font-size: 18px; }
 .volume-osd-percent { min-width: 34px; color: @fg; font-size: 12px; font-weight: 600; }
 .volume-osd-meter.dim progress { background-color: alpha(@fg, 0.30); }
-/* Layouts: one segmented pill like the notification actions; the active fill (the segments'
-   CSS color) is painted under them and flows across on a switch while the labels crossfade. */
-.layout-osd-segments { color: alpha(@fg, 0.12); }
-.layout-osd-item { min-height: 28px; border-radius: 5px; color: @muted; font-size: 12px; font-weight: 600; background-color: alpha(white, 0.08); transition: color 220ms cubic-bezier(0.32, 0.72, 0, 1); }
-.layout-osd-item:first-child { border-radius: 999px 5px 5px 999px; }
-.layout-osd-item:last-child { border-radius: 5px 999px 999px 5px; }
-.layout-osd-caps { color: alpha(white, 0.22); font-size: 16px; }
-.layout-osd-caps.active { color: @info; }
+/* Layouts: one seamless track across the OSD, even 10px all round; the picked layout sits under a
+   pill thumb (the track's CSS color) that glides across on a switch while the labels crossfade. */
+.layout-osd-segments { margin: 0 -4px; padding: 3px; border-radius: 999px; background-color: alpha(white, 0.08); color: alpha(@fg, 0.14); }
+.layout-osd-item { color: @muted; font-size: 12px; font-weight: 600; transition: color 220ms cubic-bezier(0.32, 0.72, 0, 1); }
 .layout-osd-item.active { color: @fg; }
+.layout-osd-caps { color: @info; font-size: 16px; }
 .voice-osd-icon { color: @muted; font-size: 18px; }
 .voice-osd-icon.speaking { color: @critical; }
 .voice-osd-text { color: @fg; font-size: 13px; }

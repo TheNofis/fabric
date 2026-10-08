@@ -20,24 +20,23 @@ from shared.window import OverlayWindow
 
 
 class Segments(Box):
-    """One pill split into segments (the notification actions' shape). The active fill is painted
-    under them and flows to the picked segment, its corners reshaping on the way."""
-
-    SEAM_RADIUS = 5  # inner corners, as .notification-button
+    """Segmented track: equal segments with no seams, the picked one under a pill thumb that
+    glides across on a switch (painted under the labels, so they stay crisp on top of it)."""
 
     def __init__(self, names: tuple[str, ...]):
-        self.items = [text(name.upper(), "layout-osd-item") for name in names]
         self.names = names
-        super().__init__(spacing=2, h_expand=True, style_classes=("layout-osd-segments",), children=self.items)
+        self.items = [text(name.upper(), "layout-osd-item") for name in names]
+        self.row = Box(homogeneous=True, h_expand=True, children=self.items)
         for label in self.items:
             label.set_hexpand(True)
-        self.position = 0.0  # segment index, fractional mid-flow
+        super().__init__(h_expand=True, style_classes=("layout-osd-segments",), children=[self.row])
+        self.position = 0.0  # segment index, fractional mid-glide
         self.tween = Tween(self, lambda: self.position, self.move)
-        self.connect("draw", self.paint)  # before the default handler: the fill sits under the segments
+        self.row.connect("draw", self.paint)  # before the default handler: the thumb sits under the labels
 
     def move(self, position: float) -> None:
         self.position = position
-        self.queue_draw()
+        self.row.queue_draw()
 
     def select(self, name: str, animate: bool) -> None:
         for label, item in zip(self.items, self.names):
@@ -45,26 +44,15 @@ class Segments(Box):
         if name in self.names:
             (self.tween.to if animate else self.tween.jump)(float(self.names.index(name)))
 
-    def paint(self, _widget: Gtk.Widget, cr: Any) -> bool:
-        last = len(self.items) - 1
-        i = min(int(self.position), last)
-        j, t = min(i + 1, last), self.position - i
-        box, a, b = self.get_allocation(), self.items[i].get_allocation(), self.items[j].get_allocation()
-        lerp = lambda p, q: p + (q - p) * t
-        x, y, width, height = lerp(a.x, b.x) - box.x, a.y - box.y, lerp(a.width, b.width), a.height
-        full = height / 2
-
-        def corners(k: int) -> tuple[float, float]:  # (left, right) radius of segment k
-            return (full if k == 0 else self.SEAM_RADIUS, full if k == last else self.SEAM_RADIUS)
-
-        left, right = (lerp(p, q) for p, q in zip(corners(i), corners(j)))
+    def paint(self, row: Gtk.Widget, cr: Any) -> bool:
+        width = row.get_allocated_width() / len(self.items)
+        height = row.get_allocated_height()
+        radius, x = height / 2, self.position * width
         cr.new_sub_path()
-        cr.arc(x + width - right, y + right, right, -math.pi / 2, 0)
-        cr.arc(x + width - right, y + height - right, right, 0, math.pi / 2)
-        cr.arc(x + left, y + height - left, left, math.pi / 2, math.pi)
-        cr.arc(x + left, y + left, left, math.pi, 3 * math.pi / 2)
+        cr.arc(x + width - radius, radius, radius, -math.pi / 2, math.pi / 2)
+        cr.arc(x + radius, radius, radius, math.pi / 2, 3 * math.pi / 2)
         cr.close_path()
-        Gdk.cairo_set_source_rgba(cr, self.get_style_context().get_color(self.get_state_flags()))  # CSS color = fill
+        Gdk.cairo_set_source_rgba(cr, self.get_style_context().get_color(self.get_state_flags()))  # CSS color = thumb
         cr.fill()
         return False
 
@@ -77,16 +65,13 @@ class VolumeOSD(OverlayWindow):
         self.scale = meter("volume-osd-meter")
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
-        self.caps = text("󰪛", "volume-osd-percent", "layout-osd-caps")
+        self.caps = text("󰪛", "layout-osd-caps")
+        self.caps.set_no_show_all(True)  # shown only while Caps Lock is on: the track takes the room otherwise
         self.layouts = Segments(KeyboardState.LAYOUTS)
         self.layout_row = Box(
-            spacing=8,
+            spacing=10,
             h_expand=True,
-            children=[
-                text("󰌌", "volume-osd-icon", "volume-osd-glyph"),
-                self.layouts,
-                self.caps,
-            ],
+            children=[self.layouts, self.caps],
         )
         self.layout = None
         body = Box(style_classes=("volume-osd",), children=[self.volume_row, self.layout_row])
@@ -115,7 +100,7 @@ class VolumeOSD(OverlayWindow):
         layout = value.get("layout")
         self.layouts.select(layout, animate=self.layout is not None)  # the startup state just lands
         # caps only updates the indicator; the OSD opens on layout switches alone
-        flag(self.caps, "active", bool(value.get("caps")))
+        self.caps.set_visible(bool(value.get("caps")))
         # the first value is the startup state, not a switch
         if self.layout is not None and layout != self.layout:
             self.open_temporarily(self.layout_row)
