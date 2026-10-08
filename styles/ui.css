@@ -12,7 +12,7 @@
 
 /* row_list() / list_row() / check(): the selected row carries the only fill */
 .ui-rows { margin: 0 -8px; }
-.ui-row { padding: 6px 8px; border-radius: 8px; color: @muted; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.ui-row { padding: 6px 8px; border-radius: 8px; color: @muted; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-row:hover { color: @fg; background-color: alpha(@fg, 0.06); }
 .ui-row.default { color: @fg; background-color: alpha(@fg, 0.12); }
 .ui-row.default:hover { background-color: alpha(@fg, 0.16); }
@@ -26,7 +26,7 @@
 /* button(): pill; primary is the accent-filled default action. Font rules go on the label:
    `*` sets font-size and weight on every node, so they never inherit from the button.
    Inside a panel the pill is compact (12px), dialogs keep the full size. */
-.ui-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; -gtk-outline-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.ui-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; -gtk-outline-radius: 999px; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-button:hover { background-color: alpha(@fg, 0.16); }
 .ui-button:active { background-color: alpha(black, 0.25); }
 .ui-button.primary { background-color: @accent_fill; color: white; }
@@ -38,7 +38,7 @@
 .ui-panel .ui-button label { font-size: 12px; }
 
 /* nav_button() */
-.ui-nav { border-radius: 6px; padding: 3px 6px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.ui-nav { border-radius: 6px; padding: 3px 6px; color: @muted; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-nav-arrow { min-width: 16px; min-height: 22px; margin: -4px 0; }  /* 28px target, header keeps its height */
 .ui-nav-arrow label { font-size: 11px; }
 .ui-nav-arrow:hover { background-color: alpha(@fg, 0.12); color: @fg; }
@@ -57,7 +57,7 @@
 .ui-slider { margin: 2px 0 4px; }
 .ui-slider trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
 .ui-slider highlight { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
-.ui-slider slider { min-width: 14px; min-height: 14px; margin: -5px 0; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); transition: box-shadow 150ms ease-out; }
+.ui-slider slider { min-width: 14px; min-height: 14px; margin: -5px 0; border-radius: 999px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); transition: box-shadow 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-slider slider:hover, .ui-slider slider:active { box-shadow: 0 1px 3px alpha(black, 0.4), 0 0 0 4px alpha(white, 0.14); }
 .ui-slider.dim highlight { background-color: alpha(@fg, 0.30); }
 

@@ -15,6 +15,9 @@
 window { background-color: transparent; }
 /* Keyboard focus: GTK3 draws the outline only once Tab has moved focus (gtk-visible-focus), never after a click. */
 button { outline: 2px solid alpha(@accent, 0.6); outline-offset: 1px; -gtk-outline-radius: 8px; }
+/* Motion: one decelerating curve (design.toml motion.ease) for every state change. A press lands
+   instantly and the release eases back, so a click feels physical instead of laggy. */
+button:active { transition-duration: 0ms; }
 tooltip {
   background-color: @bg_panel;
   border: 1px solid @border;
@@ -97,7 +100,7 @@ tooltip {
 .cal-back { margin-left: -6px; }
 .cal-back.away:hover { background-color: alpha(@fg, 0.12); color: @fg; }
 .cal-head { color: @muted; font-size: 10px; font-weight: 600; min-height: 22px; }
-.cal-cell { color: @fg; min-width: 30px; min-height: 30px; padding: 0; margin: 1px 0; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out; }
+.cal-cell { color: @fg; min-width: 30px; min-height: 30px; padding: 0; margin: 1px 0; border-radius: 999px; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .cal-cell:hover { background-color: alpha(@fg, 0.08); }
 .cal-cell.outside { color: alpha(@fg, 0.28); }
 .cal-cell.today { color: white; background-color: @accent_fill; }
@@ -119,7 +122,7 @@ tooltip {
   padding: 18px 20px 16px;
   color: @fg;
 }
-.dayline-cell { min-width: 34px; min-height: 36px; margin: 1px 0; border-radius: 10px; color: @fg; background-color: transparent; transition: background-color 150ms ease-out; }
+.dayline-cell { min-width: 34px; min-height: 36px; margin: 1px 0; border-radius: 10px; color: @fg; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-cell:hover { background-color: alpha(@fg, 0.08); }
 .dayline-cell:active { background-color: alpha(black, 0.25); }
 .dayline-cell.selected { background-color: alpha(@fg, 0.14); }
@@ -136,7 +139,7 @@ tooltip {
 .dayline-day { min-width: 330px; }
 .dayline-day scrolledwindow { background-color: transparent; }
 
-.dayline-note { padding: 7px 8px; border-radius: 10px; background-color: transparent; transition: background-color 150ms ease-out; }
+.dayline-note { padding: 7px 8px; border-radius: 10px; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-day .dayline-note { margin: 0 -8px; }
 .dayline-next .dayline-note { margin: 0 -8px; padding: 5px 8px; }
 .dayline-note:hover { background-color: alpha(@fg, 0.06); }
@@ -147,7 +150,7 @@ tooltip {
 .dayline-text { color: @fg; font-size: 13px; }
 .dayline-next .dayline-text { font-size: 12px; }
 .dayline-note.past .dayline-text, .dayline-note.past .dayline-when { color: alpha(@fg, 0.40); }
-.dayline-delete { color: transparent; min-width: 28px; min-height: 28px; margin: -3px; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-delete { color: transparent; min-width: 28px; min-height: 28px; margin: -3px; border-radius: 999px; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-note:hover .dayline-delete, .dayline-note.editing .dayline-delete { color: @muted; }
 .dayline-delete:hover { color: @critical; background-color: alpha(@critical, 0.14); }
 .dayline-delete label { font-size: 12px; }
@@ -155,7 +158,7 @@ tooltip {
 
 /* Reminders: the circle completes (accent once done: a state), done notes strike through and fade.
    Marks trail the note: priority in plain weight, the flag in Apple's orange, repeat muted. */
-.dayline-check { min-width: 28px; min-height: 28px; margin: -4px; padding: 0; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.dayline-check { min-width: 28px; min-height: 28px; margin: -4px; padding: 0; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: color 160ms cubic-bezier(0.32, 0.72, 0, 1), background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-check label { font-size: 15px; }
 .dayline-check:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .dayline-note.done .dayline-check { color: @accent; }
@@ -177,16 +180,16 @@ tooltip {
 .dayline-note.overdue .dayline-check:hover { color: @critical; background-color: alpha(@critical, 0.16); }
 .dayline-note.done .dayline-mark-priority, .dayline-note.done .dayline-mark-flag { color: alpha(@fg, 0.32); }
 /* "No date": a section heading that is also a target, like a day cell. */
-.dayline-undated { margin: 10px -8px 2px; padding: 4px 8px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-undated { margin: 10px -8px 2px; padding: 4px 8px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-undated label { font-size: 11px; font-weight: 600; }
 .dayline-undated:hover { color: @fg; background-color: alpha(@fg, 0.06); }
 .dayline-undated.selected { color: @fg; background-color: alpha(@fg, 0.14); }
-.dayline-undated .dayline-undated-add { color: transparent; font-weight: 500; transition: color 150ms ease-out; }
+.dayline-undated .dayline-undated-add { color: transparent; font-weight: 500; transition: color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-undated:hover .dayline-undated-add { color: @muted; }
 
 /* List tabs: the day cell's language in a row; the list's own color is only its dot. */
 .dayline-tabs { margin: -4px -6px 0; }
-.dayline-tab { padding: 4px 10px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-tab { padding: 4px 10px; border-radius: 8px; color: @muted; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-tab label { font-size: 12px; font-weight: 500; }
 .dayline-tab:hover { color: @fg; background-color: alpha(@fg, 0.08); }
 .dayline-tab.active { color: @fg; background-color: alpha(@fg, 0.14); }
@@ -204,7 +207,7 @@ tooltip {
 .dayline-desc-entry { color: @muted; caret-color: @accent; font-size: 12px; margin-top: 6px; padding-top: 6px; border-top: 1px solid alpha(white, 0.08); }
 .dayline-desc-entry selection { background-color: alpha(@accent, 0.45); }
 /* Priority and list chip: quiet pills inside the composer, full voice once they carry a choice. */
-.dayline-prio, .dayline-chip { min-height: 22px; padding: 0 8px; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-prio, .dayline-chip { min-height: 22px; padding: 0 8px; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-prio label { font-size: 12px; font-weight: 700; }
 .dayline-prio:hover, .dayline-chip:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .dayline-prio.set { color: @fg; }
@@ -214,7 +217,7 @@ tooltip {
 /* Time picker: 24 hours in two rows, quarter hours below; the picked slot is a neutral fill,
    hours already gone today fade but stay clickable. */
 .dayline-picker { padding: 8px; border-radius: 12px; background-color: alpha(white, 0.06); margin-bottom: 2px; }
-.dayline-slot { min-height: 26px; padding: 0 6px; border-radius: 7px; color: @fg; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-slot { min-height: 26px; padding: 0 6px; border-radius: 7px; color: @fg; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .dayline-slot label { font-size: 11px; }
 .dayline-slot:hover { background-color: alpha(@fg, 0.10); }
 .dayline-slot.minute { margin-top: 6px; }  /* the minutes row sits apart from the hours */
@@ -235,7 +238,7 @@ tooltip {
 
 /* Sound panel: sysmon's layout; the slider is a sysmon meter with a knob, the default device
    carries the only fill. Muted dims the numbers, it is not an alarm, so no red. */
-.sound-mute { color: @icon; font-size: 16px; min-width: 30px; min-height: 30px; border-radius: 999px; background-color: alpha(@fg, 0.08); transition: background-color 150ms ease-out; }
+.sound-mute { color: @icon; font-size: 16px; min-width: 30px; min-height: 30px; border-radius: 999px; background-color: alpha(@fg, 0.08); transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .sound-mute:hover { background-color: alpha(@fg, 0.14); }
 .sound-mute.active { color: @bg; background-color: @fg; }
 .sound-settings { color: @muted; font-size: 12px; padding: 6px 8px; margin: -8px -8px 0; border-radius: 8px; }
@@ -247,10 +250,10 @@ tooltip {
 .display-label { color: @muted; font-size: 12px; }
 .display-value { color: @fg; font-size: 12px; font-weight: 500; }
 .display-edited { margin-top: 10px; }
-.display-link { color: @muted; padding: 1px 8px; margin-right: -8px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.display-link { color: @muted; padding: 1px 8px; margin-right: -8px; border-radius: 999px; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .display-link:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .display-warmth trough { background-image: linear-gradient(to right, alpha(#FF9F0A, 0.75), alpha(white, 0.18)); }
-.display-delete { color: transparent; min-width: 28px; margin: 0 -3px; border-radius: 6px; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.display-delete { color: transparent; min-width: 28px; margin: 0 -3px; border-radius: 6px; transition: color 160ms cubic-bezier(0.32, 0.72, 0, 1), background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .ui-row:hover .display-delete { color: @muted; }
 .ui-row .display-delete:hover, .ui-row .display-delete.armed { color: @critical; background-color: alpha(@critical, 0.14); }
 .ui-panel .display-form { min-width: 0; margin: 8px -8px 0; padding: 4px 4px 4px 14px; }
@@ -270,7 +273,7 @@ tooltip {
 .net-password .ui-field-entry { font-size: 13px; }
 .net-options { margin: 2px 0 6px; }
 .net-action.armed { color: white; background-color: @critical_fill; }
-.net-more { color: @muted; min-width: 22px; min-height: 22px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.net-more { color: @muted; min-width: 22px; min-height: 22px; border-radius: 999px; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
 .net-more:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .net-more label { font-size: 13px; }
 .net-form { margin: 0 -8px; }
@@ -361,7 +364,7 @@ tooltip {
   padding: 0 12px;
   background-color: alpha(@fg, 0.08);
   border-radius: 5px;
-  transition: background-color 150ms ease-out;
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .notification-button:first-child { border-radius: 999px 5px 5px 999px; }
 .notification-button:last-child { border-radius: 5px 999px 999px 5px; }
@@ -385,7 +388,7 @@ tooltip {
 /* Shared buttons are bare: a fill appears on hover, press darkens. */
 .music-close, .music-button, .notification-close, .notification-action, .bar-button {
   background-color: transparent;
-  transition: background-color 150ms ease-out, color 150ms ease-out;
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 .music-close:hover, .music-button:hover, .notification-close:hover, .notification-action:hover, .bar-button:hover {
   background-color: alpha(@fg, 0.12);
@@ -434,7 +437,7 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .launcher-entry selection { background-color: alpha(@accent, 0.45); }
 .launcher-hint { color: @muted; font-size: 11px; padding: 0 12px 8px 42px; }
 .launcher-list { padding: 6px 0 0; border-top: 1px solid alpha(white, 0.08); }
-.launcher-row { padding: 7px 10px; border-radius: 14px; transition: background-color 120ms ease-out; }
+.launcher-row { padding: 7px 10px; border-radius: 14px; transition: background-color 120ms cubic-bezier(0.32, 0.72, 0, 1); }
 .launcher-row.selected { background-color: alpha(@fg, 0.14); box-shadow: inset 0 1px @highlight; }
 .launcher-row.selected, .launcher-row.selected * { color: @fg; }
 .launcher-row.selected .launcher-name { font-weight: 600; }
