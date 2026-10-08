@@ -17,7 +17,7 @@ from fabric.widgets.button import Button
 from fabric.widgets.entry import Entry
 from fabric.widgets.overlay import Overlay
 from fabric.widgets.scrolledwindow import ScrolledWindow
-from gi.repository import Gdk, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_time, split_time, step_time
 from services import mock
@@ -29,6 +29,7 @@ from shared.window import PopupWindow
 
 PRIORITY_MARK = {9: "!", 5: "!!", 1: "!!!"}  # Apple: 9 low, 5 medium, 1 high
 PRIORITY_CYCLE = [0, 9, 5, 1]
+PRIORITY_NAME = {0: "none", 9: "low", 5: "medium", 1: "high"}
 ALL = "*"  # the tab that shows every list at once
 
 
@@ -69,6 +70,8 @@ class DaylineWindow(PopupWindow):
         self.tab = notes.list  # the iCloud list on screen; "" without iCloud
         self.target = self.tab  # the list the composer writes to
         self.priority = 0
+        self.deleted: Note | None = None  # deleted on screen, committed once the undo window passes
+        self.undo_timer = 0
         self.shown_lists: list[list[str]] | None = None
 
         # top: one tab per iCloud list
@@ -106,7 +109,7 @@ class DaylineWindow(PopupWindow):
         self.time.set_width_chars(5)
         self.time.set_max_length(5)
         self.time.set_alignment(1)
-        self.prio = Button(style_classes=("dayline-prio",), child=text("!"), tooltip_text="Priority", on_clicked=lambda *_: self.cycle_priority())
+        self.prio = Button(style_classes=("dayline-prio",), child=text("!"), on_clicked=lambda *_: self.cycle_priority())
         self.chip_dot, self.chip_title = Box(), text("", "dayline-chip-title")
         self.chip_title.set_ellipsize(Pango.EllipsizeMode.END)
         self.chip_title.set_max_width_chars(9)
@@ -142,17 +145,20 @@ class DaylineWindow(PopupWindow):
             entry.connect("activate", lambda *_: self.submit())
         for entry in (self.entry, self.time):
             entry.connect("changed", lambda *_: self.on_typing())
+            for signal in ("focus-in-event", "focus-out-event"):  # after: has_focus is updated by then
+                entry.connect_after(signal, lambda *_: self.render_caption())
 
         scroller = ScrolledWindow(h_scrollbar_policy="never", v_scrollbar_policy="automatic", child=self.list, v_expand=True)
         scroller.set_size_request(-1, 120)  # gives way to the picker; the month column sets the height
+        self.month_box = Box(orientation="v", spacing=6, style_classes=("dayline-month",), children=[
+            Box(children=[self.back, Box(h_expand=True), self.nav("", -1), self.nav("", 1)]),
+            grid,
+            Box(orientation="v", spacing=6, style_classes=("dayline-next",), children=[text("Up next", "dayline-section", xalign=0), self.upcoming]),
+        ])
         panel = Box(orientation="v", spacing=14, style_classes=("dayline",), children=[
             self.tabs,
             Box(spacing=28, children=[
-                Box(orientation="v", spacing=6, style_classes=("dayline-month",), children=[
-                    Box(children=[self.back, Box(h_expand=True), self.nav("", -1), self.nav("", 1)]),
-                    grid,
-                    Box(orientation="v", spacing=6, style_classes=("dayline-next",), children=[text("Up next", "dayline-section", xalign=0), self.upcoming]),
-                ]),
+                self.month_box,
                 Box(orientation="v", spacing=10, h_expand=True, style_classes=("dayline-day",), children=[
                     Box(spacing=12, children=[self.day_number, Box(orientation="v", valign="center", children=[self.weekday, self.day_hint])]),
                     scroller,
@@ -174,6 +180,7 @@ class DaylineWindow(PopupWindow):
         self.add_events(Gdk.EventMask.SCROLL_MASK)
         self.connect("scroll-event", self.on_scroll)  # the notes list scrolls itself first
         self.connect("show", lambda *_: self.open())
+        self.connect("hide", lambda *_: self.commit_delete())
         self.connect("map-event", lambda *_: self.take_focus())
         clock.subscribe(self.on_clock)
         notes.subscribe(lambda *_: self.render())
@@ -195,7 +202,17 @@ class DaylineWindow(PopupWindow):
             self.month = month_start(self.selected)
         self.render()  # also re-dims notes whose time just passed
 
+    def show_day(self, day: date) -> None:
+        if not self.get_visible():
+            self.show_all()  # open() picks today first
+        self.pick(day)
+
     def on_scroll(self, _widget: Gtk.Widget, event: Gdk.EventScroll) -> bool:
+        _, ox, oy = self.month_box.get_window().get_origin()
+        _, x, y = event.get_root_coords()
+        area = self.month_box.get_allocation()
+        if not (0 <= x - ox - area.x < area.width and 0 <= y - oy - area.y < area.height):
+            return False  # only the month column flips months
         if event.direction in (Gdk.ScrollDirection.UP, Gdk.ScrollDirection.DOWN):
             self.show_month(month_start(self.month, -1 if event.direction == Gdk.ScrollDirection.UP else 1))
         return True
@@ -215,6 +232,9 @@ class DaylineWindow(PopupWindow):
         self.entry.set_position(-1)
 
     def _on_key_press(self, widget: Any, event: Gdk.EventKey) -> bool:
+        if event.keyval in (Gdk.KEY_z, Gdk.KEY_Z) and event.state & Gdk.ModifierType.CONTROL_MASK and self.deleted:
+            self.undo_delete()
+            return True
         if event.keyval == Gdk.KEY_Escape and self.editing:
             self.cancel_edit()
             return True
@@ -264,7 +284,8 @@ class DaylineWindow(PopupWindow):
 
     def shown(self) -> list[Note]:
         """The visible notes of the list on screen."""
-        return [note for note in self.notes.value if self.tab in ("", ALL) or note.list_id == self.tab]
+        gone = self.deleted.id if self.deleted else None
+        return [note for note in self.notes.value if note.id != gone and (self.tab in ("", ALL) or note.list_id == self.tab)]
 
     # composer
 
@@ -352,7 +373,23 @@ class DaylineWindow(PopupWindow):
     def delete(self, note: Note) -> None:
         if self.editing and self.editing.id == note.id:
             self.cancel_edit()
-        self.notes.delete(note.id)
+        self.commit_delete()
+        # held back for the undo window, so iCloud never sees a delete that was undone
+        self.deleted, self.undo_timer = note, GLib.timeout_add(6000, self.commit_delete)
+        self.render()
+
+    def commit_delete(self) -> bool:
+        if self.undo_timer:
+            GLib.source_remove(self.undo_timer)
+        note, self.deleted, self.undo_timer = self.deleted, None, 0
+        if note:
+            self.notes.delete(note.id)  # re-renders through the subscription
+        return False
+
+    def undo_delete(self) -> None:
+        GLib.source_remove(self.undo_timer)
+        self.deleted, self.undo_timer = None, 0
+        self.render()
 
     # rendering
 
@@ -394,9 +431,12 @@ class DaylineWindow(PopupWindow):
         if not day_notes:
             self.list.add(text("No notes for this day", "dayline-empty", xalign=0))
         undated = [note for note in notes if not note.day]
-        header = Button(style_classes=("dayline-undated",), child=text("No date", xalign=0), on_clicked=lambda *_: self.pick_undated(),
+        header = Button(style_classes=("dayline-undated",), on_clicked=lambda *_: self.pick_undated(),
                         tooltip_text="Add here, or move the note you edit here")
         header.set_can_focus(False)
+        label = text("No date", xalign=0)
+        label.set_hexpand(True)
+        header.add(Box(children=[label, text("Move here" if self.editing else "Add here", "dayline-undated-add")]))
         flag(header, "selected", self.undated)
         self.list.add(header)
         for note in undated:
@@ -435,6 +475,7 @@ class DaylineWindow(PopupWindow):
 
     def render_composer(self) -> None:
         self.prio.get_child().set_text(PRIORITY_MARK.get(self.priority, "!"))
+        self.prio.set_tooltip_text(f"Priority: {PRIORITY_NAME.get(self.priority, 'none')} · click to change")
         flag(self.prio, "set", self.priority in PRIORITY_MARK)
         lists = {item[0]: item for item in self.notes.lists}
         self.chip.set_visible(bool(lists))
@@ -455,14 +496,16 @@ class DaylineWindow(PopupWindow):
     def row(self, note: Note, when: str, on_click: Any, wide: bool = False) -> Button:
         remove = Button(style_classes=("dayline-delete",), child=text("󰅖"), on_clicked=lambda *_: self.delete(note), tooltip_text="Delete")
         remove.set_can_focus(False)
-        marks = [text(PRIORITY_MARK[note.priority], "dayline-mark-priority")] if note.priority in PRIORITY_MARK else []
+        marks = [text(PRIORITY_MARK[note.priority], "dayline-mark-priority", f"p{note.priority}")] if note.priority in PRIORITY_MARK else []
         if note.flagged:
             marks.append(text("󰈻", "dayline-mark-flag"))
         if note.repeat:
             marks.append(text("󰑖", "dayline-mark-repeat"))
         if self.tab == ALL:  # under All the note carries its list's color, so the lists stay apart
             marks.append(list_dot(next((color for list_id, _, color in self.notes.lists if list_id == note.list_id), "")))
-        body = [note_text(note.text, wide)]
+        label = note_text(note.text, wide)
+        label.set_hexpand(wide)  # the marks follow the text; up next keeps its one ellipsized line
+        body = [Box(spacing=6, children=[label, Box(spacing=4, valign="start", children=marks)])]
         if note.desc and not wide:
             body.append(note_text(note.desc, True, "dayline-desc"))
         inner = [remove]
@@ -481,7 +524,7 @@ class DaylineWindow(PopupWindow):
             ])
         row = Button(
             style_classes=("dayline-note",),
-            child=Box(spacing=8, children=[content, Box(spacing=4, valign="center", children=marks), remove]),
+            child=Box(spacing=8, children=[content, remove]),
             on_clicked=lambda *_: on_click(note),
         )
         row.set_can_focus(False)
@@ -496,7 +539,10 @@ class DaylineWindow(PopupWindow):
 
     def render_caption(self) -> None:
         where = "No date" if self.undated else relative(self.selected, self.today) if abs((self.selected - self.today).days) < 2 else f"{self.selected:%a %d %b}"
-        if self.editing and (self.editing.day or None) != (None if self.undated else self.selected.isoformat()):
+        if self.deleted:
+            gone = self.deleted.text if len(self.deleted.text) <= 24 else self.deleted.text[:23] + "…"
+            hint = f"Deleted “{gone}” · Ctrl+Z to undo"
+        elif self.editing and (self.editing.day or None) != (None if self.undated else self.selected.isoformat()):
             hint = f"Enter moves it to {where} · Esc cancels"
         elif self.editing:
             hint = "Editing · click a day or No date to move it · Esc cancels"
@@ -504,7 +550,12 @@ class DaylineWindow(PopupWindow):
             hint = "Enter adds to No date · click a day to date it"
         else:
             time = self.composed()[0]
-            hint = f"Enter adds to {where} at {time}" if time else f"Enter adds to {where} · ↑↓ or wheel set the time, or type it: Call 15:30"
+            if time:
+                hint = f"Enter adds to {where} at {time}"
+            elif self.time.has_focus() or (self.entry.has_focus() and not self.entry.get_text()):
+                hint = "↑↓ set time · or type “Call 15:30”"
+            else:
+                hint = f"Enter adds to {where}"
         self.caption.set_text(hint)
 
 
