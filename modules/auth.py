@@ -29,8 +29,11 @@ def _password_entry(on_activate: Any) -> tuple[Entry, Box]:
 
 
 class AuthWindow(PopupWindow):
-    def __init__(self, monitor: Monitor):
+    outside_click_closes = False  # a stray click must not cancel a sudo prompt
+
+    def __init__(self, monitor: Monitor, keyboard: Any):
         self.agent: Any = None
+        self.failure, self.busy, self.caps = "", False, False
         self.title = text("", "auth-title")
         self.message = text("", "auth-message")
         self.message.set_line_wrap(True)
@@ -64,8 +67,9 @@ class AuthWindow(PopupWindow):
                 Box(spacing=8, h_align="end", children=[self.cancel_button, self.ok_button]),
             ],
         )
-        # dismissible: keyboard grab while open; Esc, a click outside or losing the grab cancels
+        # dismissible: keyboard grab while open; Esc cancels
         super().__init__(monitor, title="fabric-auth", dismissible=True, geometry="center", size=(400, -1), child=panel)
+        keyboard.subscribe(lambda v: (setattr(self, "caps", bool(v.get("caps"))), self._update_hint()))
         self.clip_to(20, panel)
         self.connect("map-event", lambda *_: (self.take_focus(), self._focus()))
         self.connect("hide", lambda *_: self.agent is not None and self.agent.cancel())
@@ -75,7 +79,8 @@ class AuthWindow(PopupWindow):
         self.title.set_text(title)
         self.message.set_text(message)
         self.message.set_visible(bool(message))
-        self.hint.hide()
+        self.failure = ""
+        self._update_hint()
         flag(self.input, "failed", False)
         self.show_all()
 
@@ -97,8 +102,8 @@ class AuthWindow(PopupWindow):
         self._focus()
 
     def error(self, value: str) -> None:
-        self.hint.set_text(value.strip())
-        self.hint.show()
+        self.failure = value.strip()
+        self._update_hint()
         flag(self.input, "failed", True)
 
     def close(self) -> None:
@@ -108,8 +113,21 @@ class AuthWindow(PopupWindow):
         (self.entry if self.input.get_visible() else self.ok_button).grab_focus()
 
     def _set_busy(self, busy: bool) -> None:
+        self.busy = busy
         for widget in (self.entry, self.repeat, self.choice, self.ok_button):
             widget.set_sensitive(not busy)
+        self._update_hint()
+
+    def _update_hint(self) -> None:
+        if self.busy:
+            parts = ["Checking…"]
+        else:
+            parts = [self.failure] if self.failure else []
+            if self.caps and self.input.get_visible():
+                parts.append("Caps Lock is on")
+        self.hint.set_text(" · ".join(parts))
+        self.hint.set_visible(bool(parts))
+        flag(self.hint, "failed", bool(self.failure) and not self.busy)
 
     def _submit(self) -> None:
         if not self.ok_button.get_sensitive() or self.agent is None:
@@ -118,8 +136,8 @@ class AuthWindow(PopupWindow):
         if self.repeat_input.get_visible() and password != self.repeat.get_text():
             self.error("Passwords do not match")
             return
+        self.failure = ""
         self._set_busy(True)
-        self.hint.hide()
         flag(self.input, "failed", False)
         self.agent.respond(password, self.choice.get_active())
         for entry in (self.entry, self.repeat):
@@ -128,10 +146,10 @@ class AuthWindow(PopupWindow):
 
 def build(context: Any) -> list[Any]:
     if mock.ENABLED:
-        return [AuthWindow(context.monitors[0])]
+        return [AuthWindow(context.monitors[0], context.keyboard)]
     windows = []
     for service in (polkit, keyring):
-        window = AuthWindow(context.monitors[0])
+        window = AuthWindow(context.monitors[0], context.keyboard)
         window.agent = service.start(window)
         if window.agent is not None:
             windows.append(window)
