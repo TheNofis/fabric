@@ -1,0 +1,6 @@
+.lock { background-color: rgba(0, 0, 0, 0.35); color: @fg; }
+.lock-time { font-size: 104px; font-weight: 600; letter-spacing: -0.03em; }
+.lock-date { color: alpha(@fg, 0.75); font-size: 20px; font-weight: 500; margin-bottom: 32px; }
+.lock-layout { color: @muted; font-size: 12px; }
+.lock-status { color: @muted; font-size: 13px; margin-top: 4px; }
+.lock-status.failed { color: @critical; }

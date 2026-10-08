@@ -1,0 +1,17 @@
+/* Network panel: sound's rows; the connected network carries the fill and the accent check.
+   Signal and lock glyphs stay neutral: strength is shape, not color. The switch is the only
+   accent fill, and only while Wi-Fi is on. */
+.net-signal { font-size: 16px; }
+.net-signal.weak { color: alpha(@fg, 0.40); }
+.net-lock { color: @muted; font-size: 12px; }
+.net-status { color: @muted; font-size: 11px; }
+.net-hint { color: @muted; font-size: 11px; margin-left: 2px; }
+.net-hint.failed { color: @critical; }
+.ui-panel .net-password { min-width: 0; margin: 2px -8px 0; padding: 7px 14px; }
+.net-password .ui-field-entry { font-size: 13px; }
+.net-options { margin: 2px 0 6px; }
+.net-action.armed { color: white; background-color: @critical_fill; }
+.net-more { color: @muted; min-width: 22px; min-height: 22px; border-radius: 999px; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.net-more:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.net-more label { font-size: 13px; }
+.net-form { margin: 0 -8px; }

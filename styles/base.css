@@ -1,0 +1,89 @@
+/* Glass surfaces: blur comes from picom; the tint is in tokens, the hairline border plus
+   an inset top highlight give the edge the lift macOS materials have. No text shadows. */
+
+* {
+  all: unset;
+  font-family: "Inter", "Symbols Nerd Font", sans-serif;
+  font-feature-settings: "tnum, cv11";
+  font-size: 13px;
+  font-weight: 400;
+}
+
+window { background-color: transparent; }
+/* Keyboard focus: GTK3 draws the outline only once Tab has moved focus (gtk-visible-focus), never after a click. */
+button { outline: 2px solid alpha(@accent, 0.6); outline-offset: 1px; -gtk-outline-radius: 8px; }
+/* Motion: one decelerating curve (design.toml motion.ease) for every state change. A press lands
+   instantly and the release eases back, so a click feels physical instead of laggy. */
+button:active { transition-duration: 0ms; }
+tooltip {
+  background-color: @bg_panel;
+  border: 1px solid @border;
+  color: @fg;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 12px;
+}
+#bar { padding: 5px 30px 0; }
+
+.island {
+  background-color: @bg_bar;
+  border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
+  border-radius: 12px;
+  padding: 0 16px;
+  color: @fg;
+}
+
+.icon { color: @icon; font-size: 14px; }
+/* Inter's tabular figures (tnum on *) keep the islands from jittering as numbers change. */
+.island .value, .time { font-size: 12px; }
+.value { color: @fg; font-weight: 500; }
+.muted, .arrow { color: @muted; }
+.time { color: @fg; font-weight: 600; }
+.w-pct { min-width: 38px; }
+.w-speed { min-width: 44px; }
+.alert .icon, .alert .value { color: @critical; }
+
+.caps {
+  color: @bg;
+  background-color: @info;
+  border-radius: 999px;
+  padding: 0 7px;
+  margin: 9px 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Workspaces: concentric with the island (12px radius - 5px margin = 7px). */
+.workspaces { padding: 0 5px; }
+.ws {
+  min-width: 34px;
+  margin: 5px 1px;
+  border-radius: 7px;
+  color: @muted;
+  font-weight: 500;
+  background-color: transparent;
+  transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1), color 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ws:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.ws.visible { color: @fg; }
+.ws.focused { color: @fg; background-color: transparent; font-weight: 600; }  /* the fill is the gliding thumb */
+.ws-thumb { background-color: alpha(@fg, 0.18); box-shadow: inset 0 1px @highlight; border-radius: 7px; }
+.ws.urgent { color: white; background-color: @critical_fill; }
+
+/* Sliders: white fill like Control Center; accent is reserved for selection and focus. */
+.vol-slider { margin: 0 4px 0 0; }
+.vol-slider trough { min-width: 88px; }
+.vol-slider highlight { background-color: @fg; }
+.vol-slider slider { min-width: 12px; min-height: 12px; margin: -4px 0; }
+
+.popup {
+  border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: @fg;
+}
+.popup-title { color: @muted; }

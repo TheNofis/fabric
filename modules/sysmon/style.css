@@ -1,0 +1,6 @@
+/* System monitor: sections split by space, not rules; big light numerals like the notification center.
+   Meters are white like every progress in the shell; red only when a value is in trouble. */
+.sysmon-graph { color: alpha(@fg, 0.85); margin: 4px 0 2px; }
+
+/* Per-core load columns (sysmon.Cores) share the graph's colour. */
+.sysmon-cores { color: alpha(@fg, 0.70); }

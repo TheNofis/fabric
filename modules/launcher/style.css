@@ -1,0 +1,27 @@
+/* Launcher: Spotlight-like large search field, selection is a neutral glass row. */
+.launcher {
+  border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 20px;
+  padding: 6px;
+  color: @fg;
+}
+.launcher-search { padding: 10px 12px; }
+.launcher-icon { color: @muted; font-size: 20px; }
+.launcher-entry { color: @fg; caret-color: @accent; font-size: 20px; font-weight: 300; }
+.launcher-placeholder { color: alpha(@fg, 0.35); font-size: 20px; font-weight: 300; }
+.launcher-entry selection { background-color: alpha(@accent, 0.45); }
+.launcher-hint { color: @muted; font-size: 11px; padding: 0 12px 8px 42px; }
+.launcher-list { padding: 6px 0 0; border-top: 1px solid alpha(white, 0.08); }
+.launcher-row { padding: 7px 10px; border-radius: 14px; transition: background-color 120ms cubic-bezier(0.32, 0.72, 0, 1); }
+.launcher-thumb { background-color: alpha(@fg, 0.14); box-shadow: inset 0 1px @highlight; border-radius: 14px; }  /* glides to the selected row */
+.launcher-row.selected, .launcher-row.selected * { color: @fg; }
+.launcher-row.selected .launcher-name { font-weight: 600; }
+.launcher-glyph { min-width: 28px; color: @icon; font-size: 20px; }
+/* SSH hosts: the target reads like the command it runs, a quiet mono line under the name. */
+.launcher-detail { color: @muted; font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; margin-top: 1px; }
+.launcher-row.selected .launcher-detail { color: @muted; }
+.launcher-row.armed { background-color: @critical_fill; }
+.launcher-row.armed, .launcher-row.armed * { color: white; }
+.launcher-row.armed .launcher-name { font-weight: 600; }

@@ -1,0 +1,5 @@
+/* Claude limits: sysmon's layout. Gauges are ui-meters (orange once the API warns, red at the cap);
+   the white tick on the panel gauges is even pace for the window. */
+.claude-pace { background-color: alpha(white, 0.95); }
+.ui-big.warn, .warn .icon, .warn .value { color: @warning; }
+.ui-big.alert { color: @critical; }

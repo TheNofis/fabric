@@ -1,0 +1,3 @@
+/* Calendar: today is a light numeral beside its weekday (notification center voice), the month
+   below is a quiet grid; the only fill is today's accent disc. */
+.cal { padding: 16px 16px 14px; }
