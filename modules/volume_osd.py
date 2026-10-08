@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import math
-
 from fabric.widgets.box import Box
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import GLib, Gtk
 
 from services.monitors import Monitor
 from services.system import KeyboardState
@@ -20,23 +18,22 @@ from shared.window import OverlayWindow
 
 
 class Segments(Box):
-    """Segmented track: equal segments with no seams, the picked one under a pill thumb that
-    glides across on a switch (painted under the labels, so they stay crisp on top of it)."""
+    """Layouts side by side on the OSD glass; the picked one sits under a thumb that glides across
+    on a switch. The thumb is styled in CSS (.layout-osd-thumb) and painted under the labels."""
 
     def __init__(self, names: tuple[str, ...]):
         self.names = names
         self.items = [text(name.upper(), "layout-osd-item") for name in names]
-        self.row = Box(homogeneous=True, h_expand=True, children=self.items)
         for label in self.items:
             label.set_hexpand(True)
-        super().__init__(h_expand=True, style_classes=("layout-osd-segments",), children=[self.row])
+        super().__init__(homogeneous=True, h_expand=True, style_classes=("layout-osd-segments",), children=self.items)
         self.position = 0.0  # segment index, fractional mid-glide
         self.tween = Tween(self, lambda: self.position, self.move)
-        self.row.connect("draw", self.paint)  # before the default handler: the thumb sits under the labels
+        self.connect("draw", self.paint)  # before the default handler: the thumb sits under the labels
 
     def move(self, position: float) -> None:
         self.position = position
-        self.row.queue_draw()
+        self.queue_draw()
 
     def select(self, name: str, animate: bool) -> None:
         for label, item in zip(self.items, self.names):
@@ -44,16 +41,13 @@ class Segments(Box):
         if name in self.names:
             (self.tween.to if animate else self.tween.jump)(float(self.names.index(name)))
 
-    def paint(self, row: Gtk.Widget, cr: Any) -> bool:
-        width = row.get_allocated_width() / len(self.items)
-        height = row.get_allocated_height()
-        radius, x = height / 2, self.position * width
-        cr.new_sub_path()
-        cr.arc(x + width - radius, radius, radius, -math.pi / 2, math.pi / 2)
-        cr.arc(x + radius, radius, radius, math.pi / 2, 3 * math.pi / 2)
-        cr.close_path()
-        Gdk.cairo_set_source_rgba(cr, self.get_style_context().get_color(self.get_state_flags()))  # CSS color = thumb
-        cr.fill()
+    def paint(self, _widget: Gtk.Widget, cr: Any) -> bool:
+        width = self.get_allocated_width() / len(self.items)
+        context = self.get_style_context()
+        context.save()
+        context.add_class("layout-osd-thumb")
+        Gtk.render_background(context, cr, self.position * width, 0, width, self.get_allocated_height())
+        context.restore()
         return False
 
 
@@ -71,6 +65,7 @@ class VolumeOSD(OverlayWindow):
         self.layout_row = Box(
             spacing=10,
             h_expand=True,
+            style_classes=("layout-osd-row",),
             children=[self.layouts, self.caps],
         )
         self.layout = None

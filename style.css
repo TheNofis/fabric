@@ -326,12 +326,14 @@ tooltip {
 .volume-osd-glyph { color: @fg; font-size: 18px; }
 .volume-osd-percent { min-width: 34px; color: @fg; font-size: 12px; font-weight: 600; }
 .volume-osd-meter.dim progress { background-color: alpha(@fg, 0.30); }
-/* Layouts: one seamless track across the OSD, even 10px all round; the picked layout sits under a
-   pill thumb (the track's CSS color) that glides across on a switch while the labels crossfade. */
-.layout-osd-segments { margin: 0 -4px; padding: 3px; border-radius: 999px; background-color: alpha(white, 0.08); color: alpha(@fg, 0.14); }
-.layout-osd-item { color: @muted; font-size: 12px; font-weight: 600; transition: color 220ms cubic-bezier(0.32, 0.72, 0, 1); }
-.layout-osd-item.active { color: @fg; }
-.layout-osd-caps { color: @info; font-size: 16px; }
+/* Layouts: the bar's workspace buttons at OSD scale. No track: the labels sit on the glass and the
+   picked one is under a focused-workspace thumb, inset 6px inside the 1px border and concentric (22 - 7 = 15),
+   that glides across on a switch while the labels crossfade. */
+.layout-osd-row { margin: -4px -8px; }
+.layout-osd-thumb { background-color: alpha(@fg, 0.18); box-shadow: inset 0 1px @highlight; border-radius: 15px; }
+.layout-osd-item { color: @muted; font-weight: 500; transition: color 220ms cubic-bezier(0.32, 0.72, 0, 1); }
+.layout-osd-item.active { color: @fg; font-weight: 600; }
+.layout-osd-caps { color: @info; font-size: 16px; margin-right: 8px; }
 .voice-osd-icon { color: @muted; font-size: 18px; }
 .voice-osd-icon.speaking { color: @critical; }
 .voice-osd-text { color: @fg; font-size: 13px; }
