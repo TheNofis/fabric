@@ -23,7 +23,8 @@ launch.sh
       │   ├─ launcher.py                источники лаунчера: apps, calc, sites, power, commands, clipboard, emoji
       │   ├─ pam.py                     проверка пароля через libpam (ctypes)
       │   ├─ polkit.py                  polkit authentication agent (D-Bus + PolkitAgent.Session)
-      │   └─ keyring.py                 gnome-keyring system prompter (D-Bus + Gcr.SecretExchange)
+      │   ├─ keyring.py                 gnome-keyring system prompter (D-Bus + Gcr.SecretExchange)
+      │   └─ askpass.py                 SSH_ASKPASS: askpass.sh → D-Bus → окно пароля
       ├─ shared/                        переиспользуемые UI-кирпичи
       │   ├─ constants.py               пути и layout-метрики (gaps, bar height)
       │   ├─ widgets.py                 text/stat/island, hover_reveal/slide, run, audio helpers
@@ -42,7 +43,7 @@ launch.sh
           ├─ notifications.py           popup + notification center
           ├─ launcher.py                лаунчер (замена rofi)
           ├─ lock.py                    экран блокировки
-          └─ auth.py                    окно пароля для polkit и gnome-keyring
+          └─ auth.py                    окно пароля для polkit, gnome-keyring и ssh askpass
 
 scripts/                                 i3 / PipeWire / MPRIS → JSON-строки
 style.css, design.toml, styles/tokens.css визуальная система

@@ -1,5 +1,6 @@
-"""Password dialogs: polkit (admin rights for pkexec, systemctl, GParted...) and
-gnome-keyring (unlocking or creating a keyring, e.g. when a browser starts).
+"""Password dialogs: polkit (admin rights for pkexec, systemctl, GParted...),
+gnome-keyring (unlocking or creating a keyring, e.g. when a browser starts) and
+SSH askpass (key passphrases and confirmations for ssh, ssh-add, git).
 
 One AuthWindow per agent. The agent calls open/prompt/error/close and gets
 respond(password, chosen) or cancel() back.
@@ -13,7 +14,7 @@ from fabric.widgets.box import Box
 from fabric.widgets.entry import Entry
 from gi.repository import Gtk
 
-from services import keyring, polkit
+from services import askpass, keyring, polkit
 from services import mock
 from services.monitors import Monitor
 from shared.ui import button, password_entry, password_field
@@ -148,7 +149,7 @@ def build(context: Any) -> list[Any]:
     if mock.ENABLED:
         return [AuthWindow(context.monitors[0], context.keyboard)]
     windows = []
-    for service in (polkit, keyring):
+    for service in (polkit, keyring, askpass):
         window = AuthWindow(context.monitors[0], context.keyboard)
         window.agent = service.start(window)
         if window.agent is not None:
