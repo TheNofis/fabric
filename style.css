@@ -362,6 +362,24 @@ tooltip {
 .notification-title { font-weight: 600; }
 .notification-body { color: alpha(@fg, 0.80); font-size: 12px; }
 .notification-image { margin-top: 4px; }
+/* Actions: one segmented pill below the text, clear of it and of the countdown.
+   Outer ends fully round, inner corners a soft 5px so the 2px seams read as cuts, not gaps. */
+.notification-buttons { margin: 8px 0 4px; }
+.notification-button {
+  color: @fg;
+  font-size: 12px;
+  font-weight: 500;
+  min-height: 30px;
+  padding: 0 12px;
+  background-color: alpha(@fg, 0.08);
+  border-radius: 5px;
+  transition: background-color 150ms ease-out;
+}
+.notification-button:first-child { border-radius: 999px 5px 5px 999px; }
+.notification-button:last-child { border-radius: 5px 999px 999px 5px; }
+.notification-button:only-child { border-radius: 999px; }
+.notification-button:hover { background-color: alpha(@fg, 0.15); }
+.notification-button:active { background-color: alpha(black, 0.25); }
 .notification-close, .notification-action { color: @muted; border-radius: 999px; min-width: 22px; min-height: 22px; }
 .notification-close { min-width: 28px; min-height: 28px; margin: -3px; }  /* hit target; the glyph stays put */
 .notification-progress progress { background-color: alpha(@fg, 0.55); }  /* ui-meter thin, dimmer: a countdown */
