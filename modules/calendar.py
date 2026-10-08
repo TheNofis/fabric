@@ -13,8 +13,8 @@ from services.dayline import grid_days, month_start
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
-from shared.ui import nav_button
-from shared.widgets import css, flag, text
+from shared.ui import MonthPages, nav_button, weekday_heads
+from shared.widgets import flag, text
 from shared.window import BarPanel
 
 
@@ -28,20 +28,16 @@ class CalendarWindow(BarPanel):
         self.weekday = text("", "cal-weekday", xalign=0)
         self.full_date = text("", "cal-date", xalign=0)
         self.title = text("", "cal-title", xalign=0)
-        self.back = Button(style_classes=("ui-nav", "cal-back"), child=self.title, on_clicked=lambda *_: self.show_month(self.today))
+        self.back = Button(style_classes=("ui-nav", "cal-back"), child=self.title, on_clicked=lambda *_: self.show_month(self.today, self.today.toordinal() - self.month.toordinal()))
 
-        grid = css(Gtk.Grid(column_homogeneous=True), "cal-grid")
-        for column, day in enumerate(grid_days(self.month)[:7]):
-            grid.attach(text(day.strftime("%a")[:2], "cal-head"), column, 0, 1, 1)
-        self.cells: list[tuple[Button, Any]] = []
-        for index in range(42):
+        def make_cell(index: int) -> tuple[Button, Any]:
             number = text("", "cal-num")
             cell = Button(style_classes=("cal-cell",), h_align="center", child=Box(orientation="v", children=[number, text("•", "cal-dot")]),
-                          on_clicked=lambda *_, i=index: self.open_day(i))
+                          on_clicked=lambda *_: self.open_day(index))
             cell.set_can_focus(False)
-            self.cells.append((cell, number))
-            grid.attach(cell, index % 7, index // 7 + 1, 1, 1)
+            return cell, number
 
+        self.pages = MonthPages(make_cell)
         super().__init__(
             monitor,
             "calendar",
@@ -58,7 +54,7 @@ class CalendarWindow(BarPanel):
                             self.nav("", -1),
                             self.nav("", 1),
                         ]),
-                        grid,
+                        Box(orientation="v", children=[weekday_heads(grid_days(self.month)), self.pages]),
                     ]),
                 ],
             ),
@@ -72,7 +68,7 @@ class CalendarWindow(BarPanel):
         return nav_button(glyph, lambda *_: self.shift(shift))
 
     def shift(self, months: int) -> None:
-        self.show_month(month_start(self.month, months))
+        self.show_month(month_start(self.month, months), months)
 
     def on_scroll(self, _window: Gtk.Widget, event: Gdk.EventScroll) -> bool:
         if event.direction in (Gdk.ScrollDirection.UP, Gdk.ScrollDirection.DOWN):
@@ -95,17 +91,22 @@ class CalendarWindow(BarPanel):
             self.hide()
             dayline.show_day(grid_days(self.month)[index])
 
-    def show_month(self, day: date) -> None:
+    def show_month(self, day: date, direction: int = 0) -> None:
+        """direction: sign says which way the grid slides (0: in place)."""
         self.month = month_start(day)
         self.title.set_markup(f'{self.month:%B} <span fgalpha="64%">{self.month.year}</span>')
         flag(self.back, "away", self.month != month_start(self.today))
         notes = getattr(self.context, "notes", None)
         busy = {n.day for n in notes.value if n.day and not n.done and not n.deleted} if notes else set()
-        for (cell, number), day in zip(self.cells, grid_days(self.month)):
-            number.set_text(str(day.day))
-            flag(cell, "busy", day.isoformat() in busy)
-            flag(cell, "outside", day.month != self.month.month)
-            flag(cell, "today", day == self.today)
+
+        def fill(cells: list[tuple[Button, Any]]) -> None:
+            for (cell, number), day in zip(cells, grid_days(self.month)):
+                number.set_text(str(day.day))
+                flag(cell, "busy", day.isoformat() in busy)
+                flag(cell, "outside", day.month != self.month.month)
+                flag(cell, "today", day == self.today)
+
+        self.pages.show(direction, fill)
 
 
 def build(context: Any) -> list[Any]:

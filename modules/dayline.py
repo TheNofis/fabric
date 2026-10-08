@@ -23,7 +23,7 @@ from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_ti
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
-from shared.ui import nav_button
+from shared.ui import MonthPages, nav_button, weekday_heads
 from shared.widgets import css, flag, run, slide, text
 from shared.window import PopupWindow
 
@@ -66,6 +66,7 @@ class DaylineWindow(PopupWindow):
         self.today = self.selected = self.now.date()
         self.undated = False  # the "No date" section is the target instead of the picked day
         self.month = month_start(self.today)
+        self.direction = 0  # set by turn(), consumed by render()
         self.editing: Note | None = None
         self.tab = notes.list  # the iCloud list on screen; "" without iCloud
         self.target = self.tab  # the list the composer writes to
@@ -81,20 +82,18 @@ class DaylineWindow(PopupWindow):
         # left: month grid with a dot under days that have notes, then what is up next
         self.title = text("", "cal-title", xalign=0)
         self.back = Button(style_classes=("ui-nav", "cal-back"), child=self.title, on_clicked=lambda *_: self.pick(self.today))
-        grid = css(Gtk.Grid(column_homogeneous=True), "dayline-grid")
-        for column, day in enumerate(grid_days(self.month)[:7]):
-            grid.attach(text(day.strftime("%a")[:2], "cal-head"), column, 0, 1, 1)
-        self.cells: list[tuple[Button, Gtk.Label]] = []
-        for index in range(42):
+
+        def make_cell(index: int) -> tuple[Button, Gtk.Label]:
             number = text("", "dayline-num")
             cell = Button(
                 style_classes=("dayline-cell",),
                 child=Box(orientation="v", children=[number, text("•", "dayline-dot")]),
-                on_clicked=lambda *_, i=index: self.pick(grid_days(self.month)[i]),
+                on_clicked=lambda *_: self.pick(grid_days(self.month)[index]),
             )
             cell.set_can_focus(False)  # keyboard stays in the entry; Alt+arrows move the day
-            self.cells.append((cell, number))
-            grid.attach(cell, index % 7, index // 7 + 1, 1, 1)
+            return cell, number
+
+        self.pages = MonthPages(make_cell)
         self.upcoming = Box(orientation="v", spacing=2)
 
         # right: the picked day, its notes, the undated ones, the composer
@@ -152,7 +151,7 @@ class DaylineWindow(PopupWindow):
         scroller.set_size_request(-1, 120)  # gives way to the picker; the month column sets the height
         self.month_box = Box(orientation="v", spacing=6, style_classes=("dayline-month",), children=[
             Box(children=[self.back, Box(h_expand=True), self.nav("", -1), self.nav("", 1)]),
-            grid,
+            Box(orientation="v", children=[weekday_heads(grid_days(self.month)), self.pages]),
             Box(orientation="v", spacing=6, style_classes=("dayline-next",), children=[text("Up next", "dayline-section", xalign=0), self.upcoming]),
         ])
         panel = Box(orientation="v", spacing=14, style_classes=("dayline",), children=[
@@ -218,12 +217,17 @@ class DaylineWindow(PopupWindow):
         return True
 
     def show_month(self, month: date) -> None:
-        self.month = month
+        self.turn(month)
         self.render()
 
     def pick(self, day: date) -> None:
-        self.selected, self.month, self.undated = day, month_start(day), False
+        self.selected, self.undated = day, False
+        self.turn(month_start(day))
         self.render()
+
+    def turn(self, month: date) -> None:
+        """Move to `month`; the next render slides the grid the way the month went."""
+        self.direction, self.month = month.toordinal() - self.month.toordinal(), month
 
     def pick_undated(self) -> None:
         self.undated = not self.undated or bool(self.editing)  # while editing, a click always moves it here
@@ -406,13 +410,18 @@ class DaylineWindow(PopupWindow):
         flag(self.back, "away", self.selected != self.today or self.month != month_start(self.today))
         busy = {note.day for note in notes if note.day and not note.done}
         late = {note.day for note in notes if note.overdue(self.now)}
-        for (cell, number), day in zip(self.cells, grid_days(self.month)):
-            number.set_text(str(day.day))
-            flag(cell, "outside", day.month != self.month.month)
-            flag(cell, "today", day == self.today)
-            flag(cell, "selected", day == self.selected and not self.undated)
-            flag(cell, "busy", day.isoformat() in busy)
-            flag(cell, "overdue", day.isoformat() in late)
+
+        def fill(cells: list[tuple[Button, Gtk.Label]]) -> None:
+            for (cell, number), day in zip(cells, grid_days(self.month)):
+                number.set_text(str(day.day))
+                flag(cell, "outside", day.month != self.month.month)
+                flag(cell, "today", day == self.today)
+                flag(cell, "selected", day == self.selected and not self.undated)
+                flag(cell, "busy", day.isoformat() in busy)
+                flag(cell, "overdue", day.isoformat() in late)
+
+        self.pages.show(self.direction, fill)
+        self.direction = 0
 
         self.day_number.set_text(str(self.selected.day))
         self.weekday.set_text(self.selected.strftime("%A"))
