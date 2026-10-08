@@ -35,10 +35,12 @@ from modules import volume_osd as volume_osd_module
 from modules import voice as voice_module
 from modules.bar import Bar
 from modules.calendar import CalendarWindow
+from modules.dayline.window import DaylineWindow
 from modules.launcher import LauncherWindow
+from modules.messages.window import MessagesWindow
 from services.launcher import as_url, parse_sites, calc, clipboard, commands, emoji, fuzzy, power, rank
 from modules.music import MusicWindow, local_art_path
-from modules.notifications import NotificationHub
+from modules.notifications.hub import NotificationHub
 from modules.registry import ModuleRegistry, ModuleSpec
 from modules.volume_osd import VolumeOSD
 from services.monitors import Monitor, parse_monitors, read_monitors
@@ -93,8 +95,8 @@ class Shell:
         self.volume_osd: VolumeOSD | None = None
         self.notifications: NotificationHub | None = None
         self.launcher: LauncherWindow | None = None
-        self.dayline: dayline_module.DaylineWindow | None = None
-        self.messages: messages_module.MessagesWindow | None = None
+        self.dayline: DaylineWindow | None = None
+        self.messages: MessagesWindow | None = None
         self.voice: voice_module.VoiceWindow | None = None
         self.lock: lock_module.Lock | None = None
         self.windows = self.registry.build(self)

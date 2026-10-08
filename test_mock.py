@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import config  # loads the GTK versions used by the shell
 from services import mock
-from services.dayline import Note, Notes
+from modules.dayline.store import Note, Notes
 from services.launcher import Sources
 from services.state import JsonState
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState

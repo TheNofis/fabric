@@ -1,4 +1,4 @@
-"""Messages (Super+T): the iPhone's texts through tether, read and answered from the desktop.
+"""The Messages panel.
 
 One column that pushes: the conversations, and a click (or Enter) slides the conversation in over
 them; Esc slides back. The search field filters conversations and, below them, the iPhone's
@@ -8,8 +8,7 @@ chip; the open conversation is marked read on the iPhone.
 
 from __future__ import annotations
 
-import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from fabric.widgets.box import Box
@@ -17,6 +16,7 @@ from fabric.widgets.button import Button
 from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import Gdk, GLib, Gtk
 
+from modules.messages.format import day_label, phone, search
 from services import mock
 from services.monitors import Monitor
 from services.tether import Message, Tether, Thread, code_in, initials
@@ -27,29 +27,6 @@ from shared.window import FocusPopup
 RUN_GAP = 5 * 60  # messages closer than this, same side, read as one run under one meta line
 SHOWN = 120  # a long history opens on its latest messages; "Earlier messages" shows the rest
 CODE_FRESH = 3600  # the list offers a code's copy chip only while it can still be used
-
-
-def day_label(moment: datetime, today: datetime) -> str:
-    days = (today.date() - moment.date()).days
-    if days == 0:
-        return "Today"
-    if days == 1:
-        return "Yesterday"
-    return f"{moment:%A}" if days < 7 else f"{moment:%A}, {moment.day} {moment:%B}" + ("" if moment.year == today.year else f" {moment.year}")
-
-
-def phone(address: str) -> str:
-    """+79220827679 → +7 922 082-76-79; anything else as it came."""
-    digits = re.sub(r"\D", "", address)
-    if len(digits) == 11 and digits[0] in "78":
-        return f"{'+7' if digits[0] == '7' or address.startswith('+') else '8'} {digits[1:4]} {digits[4:7]}-{digits[7:9]}-{digits[9:]}"
-    return address
-
-
-def dialable(query: str) -> str | None:
-    """A typed number to start a conversation with: 'tel:+79…', or None."""
-    cleaned = re.sub(r"[\s()-]", "", query)
-    return f"tel:{cleaned}" if re.fullmatch(r"\+?\d{5,15}", cleaned) else None
 
 
 def empty(title: str, hint: str = "") -> Box:
@@ -218,25 +195,10 @@ class MessagesWindow(FocusPopup):
         self.cursor = 0
         self.render_list()
 
-    def matches(self) -> tuple[list[Thread], list[tuple[str, str]], str | None]:
-        query = self.search.get_text().strip().casefold()
-        threads = self.tether.value["threads"]
-        if not query:
-            return threads, [], None
-        digits = re.sub(r"\D", "", query)
-
-        def hit(*values: str) -> bool:
-            return any(query in value.casefold() for value in values) or (len(digits) >= 3 and any(digits in re.sub(r"\D", "", value) for value in values))
-        found = [thread for thread in threads if hit(thread.name, thread.address, thread.preview)]
-        known = {thread.id for thread in threads} | {f"tel:{thread.address}" for thread in threads}
-        contacts = [(name, address) for name, address in self.tether.contacts if address not in known and hit(name, address)][:6]
-        number = dialable(query)
-        return found, contacts, number if number and number not in known and all(number != address for _, address in contacts) else None
-
     def render_list(self) -> None:
         for child in self.rows.get_children():
             child.destroy()
-        threads, contacts, number = self.matches()
+        threads, contacts, number = search(self.search.get_text(), self.tether.value["threads"], self.tether.contacts)
         self.items, self.row_widgets = [], []
         today = mock.now()
         for thread in threads:
@@ -533,21 +495,3 @@ class MessagesWindow(FocusPopup):
             self.tether.refresh()
         self.render_transcript()
         self.tether.send(thread_id, item["body"], done)
-
-
-def build(context: Any) -> list[Any]:
-    context.tether = Tether()
-    context.messages = MessagesWindow(context.monitors[0], context.tether)
-    if getattr(context, "notifications", None):
-        context.notifications.reply = lambda record: context.messages.open_named(record.title)
-    return [context.messages]
-
-
-if __name__ == "__main__":
-    today = datetime(2026, 10, 8, 21, 0)
-    stamps = [today.replace(hour=9), today - timedelta(days=1), today - timedelta(days=3), today - timedelta(days=30), today - timedelta(days=400)]
-    assert [short_time(s.timestamp(), today) for s in stamps] == ["09:00", "Yesterday", "Mon", "8 Sep", "3 Sep 2025"]
-    assert [day_label(s, today) for s in stamps[:4]] == ["Today", "Yesterday", "Monday", "Tuesday, 8 September"]
-    assert phone("+79220827679") == "+7 922 082-76-79" and phone("89264747777") == "8 926 474-77-77" and phone("megafon") == "megafon"
-    assert dialable("+7 (922) 082-76-79") == "tel:+79220827679" and dialable("Глеб") is None and dialable("12") is None
-    print("messages self-check: ok")

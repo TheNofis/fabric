@@ -1,219 +1,32 @@
-"""Notification popups and notification center (Fabric D-Bus service)."""
+"""The notification stack and the notification center (Fabric's D-Bus service behind them)."""
 
 from __future__ import annotations
 
-import base64
-import json
-import re
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import Callable
 from types import SimpleNamespace
 
 from fabric.notifications import Notifications
 from fabric.widgets.box import Box
 from fabric.widgets.button import Button
-from fabric.widgets.eventbox import EventBox
 from fabric.widgets.revealer import Revealer
 from fabric.widgets.scrolledwindow import ScrolledWindow
-import cairo
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
+from gi.repository import Gdk, GLib, Gtk
 
+from modules.notifications import record as history
+from modules.notifications.card import NotificationCard
+from modules.notifications.record import NotificationRecord, from_notification
 from services.monitors import Monitor
 from services import mock
 from services.system import ClockState
 from services.tether import code_in
-from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP, RUNTIME
-from shared.ui import Confirm, meter
-from shared.widgets import copy_text, css, flag, line, short_time, slide, text, wrapped
+from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP
+from shared.ui import Confirm
+from shared.widgets import copy_text, flag, slide, text
 from shared.window import OverlayWindow, PopupWindow
 
-
-@dataclass
-class NotificationRecord:
-    id: int
-    app: str
-    title: str
-    body: str
-    urgency: int
-    action: str  # the "default" action, run by clicking the card
-    time: float  # unix timestamp
-    icon: GdkPixbuf.Pixbuf | None = None
-    persistent: bool = False  # critical, or the sender asked for timeout 0: never expires
-    image: GdkPixbuf.Pixbuf | None = None  # body <img>
-    avatar: GdkPixbuf.Pixbuf | None = None  # image-data/image-path: sender avatar, album art
-    buttons: list[tuple[str, str]] = field(default_factory=list)  # the other actions: (id, label)
-    icon_buttons: bool = False  # action-icons hint: labels are icon names
-
-
-HISTORY_FILE = RUNTIME / "notifications.json"
-PIXBUFS = ("icon", "image", "avatar")
 MAX_POPUPS = 4
-AVATAR = 40
-
-
-def png(pixbuf: GdkPixbuf.Pixbuf | None) -> str | None:
-    return base64.b64encode(pixbuf.save_to_bufferv("png", [], [])[1]).decode() if pixbuf else None
-
-
-def unpng(data: str | None) -> GdkPixbuf.Pixbuf | None:
-    if not data:
-        return None
-    loader = GdkPixbuf.PixbufLoader()
-    loader.write(base64.b64decode(data))
-    loader.close()
-    return loader.get_pixbuf()
-
-
-def app_icon(notification: Any) -> GdkPixbuf.Pixbuf | None:
-    # the app icon as a path or theme name
-    try:
-        name = notification.app_icon.removeprefix("file://")
-        if name.startswith("/"):
-            return GdkPixbuf.Pixbuf.new_from_file_at_size(name, 20, 20)
-        if name:
-            return Gtk.IconTheme.get_default().load_icon(name, 20, Gtk.IconLookupFlags.FORCE_SIZE)
-    except GLib.Error:
-        pass
-    return None
-
-
-def avatar(notification: Any) -> GdkPixbuf.Pixbuf | None:
-    # sender image cropped to a centered square
-    try:
-        pixbuf = notification.image_pixbuf
-    except GLib.Error:
-        return None
-    if not pixbuf:
-        return None
-    width, height = pixbuf.get_width(), pixbuf.get_height()
-    scale = AVATAR / min(width, height)
-    width, height = max(AVATAR, round(width * scale)), max(AVATAR, round(height * scale))
-    pixbuf = pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
-    return pixbuf.new_subpixbuf((width - AVATAR) // 2, (height - AVATAR) // 2, AVATAR, AVATAR).copy()
-
-
-def rounded(pixbuf: GdkPixbuf.Pixbuf, radius: float = 10) -> Gtk.Image:
-    # GTK3 CSS border-radius doesn't clip images: clip with cairo instead
-    size = pixbuf.get_width()
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
-    cr = cairo.Context(surface)
-    for x, y, angle in ((size - radius, radius, -0.5), (size - radius, size - radius, 0), (radius, size - radius, 0.5), (radius, radius, 1)):
-        cr.arc(x, y, radius, angle * 3.14159, (angle + 0.5) * 3.14159)
-    cr.close_path()
-    cr.clip()
-    Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
-    cr.paint()
-    return Gtk.Image.new_from_surface(surface)
-
-
-IMG = re.compile(r"""<img\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>""", re.I)
-
-
-def body_image(body: str) -> tuple[str, GdkPixbuf.Pixbuf | None]:
-    # body-images: <img src=.../> is not Pango markup, so cut the tags out and render the first local one
-    match = IMG.search(body)
-    body = IMG.sub("", body).strip()
-    if not match:
-        return body, None
-    src = match.group(1)
-    try:
-        path = GLib.filename_from_uri(src)[0] if src.startswith("file://") else src
-        return body, GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 340, 220, True)
-    except GLib.Error:  # remote URL or unreadable file: the spec lets us skip it
-        return body, None
-
-
-LINK = re.compile(r"</?a\b[^>]*>", re.I)
-URL = re.compile(r"""https?://[^\s<>"]*[^\s<>".,;:!?)\]]""")
-
-
-def body_markup(body: str) -> str:
-    # body-markup + body-hyperlinks: GtkLabel renders <a href> but Pango's parser rejects it,
-    # so validate without the links; broken markup falls back to escaped text
-    body = re.sub(r"&(?!#?\w+;)", "&amp;", body)  # senders often leave a bare & (URLs, "Tom & Jerry")
-    try:
-        Pango.parse_markup(LINK.sub("", body), -1, "\0")
-        markup = body
-    except GLib.Error:
-        markup = GLib.markup_escape_text(body)
-    # bare URLs in plain text become links too, unless the sender already marked them up
-    return markup if LINK.search(markup) else URL.sub(lambda m: f'<a href="{m[0]}">{m[0]}</a>', markup)
-
-
-class NotificationCard(EventBox):
-    def __init__(
-        self,
-        record: NotificationRecord,
-        center: bool,
-        activate: Callable[[NotificationRecord, str], None],
-        close: Callable[[NotificationRecord], None],
-    ):
-        self.progress = progress = meter("thin", "notification-progress", glide=False)
-        progress.set_fraction(1)
-        if center or record.persistent:  # never expires: nothing to count down
-            progress.hide()
-            progress.set_no_show_all(True)
-        title = wrapped(record.title, "notification-title", chars=32)
-        self.body = body = wrapped("", "notification-body", chars=45)
-        body.set_markup(body_markup(record.body))
-        card = Box(
-            orientation="v",
-            spacing=4,
-            style_classes=("notification", *(('critical',) if record.urgency == 2 else ())),
-            children=[
-                Box(
-                    spacing=10,
-                    children=[
-                        rounded(record.avatar) if record.avatar
-                        else css(Gtk.Image.new_from_pixbuf(record.icon), "notification-icon") if record.icon
-                        else text("󰂚", "notification-icon"),
-                        Box(
-                            orientation="v",
-                            spacing=1,
-                            h_expand=True,
-                            children=[
-                                Box(
-                                    spacing=5,
-                                    children=[
-                                        # with an avatar in front, the app icon shrinks next to the app name
-                                        *((Gtk.Image.new_from_pixbuf(record.icon.scale_simple(14, 14, GdkPixbuf.InterpType.BILINEAR)),) if record.avatar and record.icon else ()),
-                                        text(record.app, "notification-app", xalign=0),
-                                    ],
-                                ),
-                                title,
-                            ],
-                        ),
-                        text(short_time(record.time, datetime.now()), "notification-time"),
-                        Button(label="×", style_classes=("notification-close",), on_clicked=lambda *_: close(record)),
-                    ],
-                ),
-                body,
-                *((css(Gtk.Image.new_from_pixbuf(record.image), "notification-image"),) if record.image else ()),
-                *((Box(
-                    spacing=2,  # hairline seams of card color: one control, separate targets
-                    homogeneous=True,  # equal segments, whatever the label lengths
-                    style_classes=("notification-buttons",),
-                    children=[
-                        Button(
-                            # a long label shrinks its segment, never widens the card
-                            child=Gtk.Image.new_from_icon_name(label, Gtk.IconSize.BUTTON) if record.icon_buttons else line(label, xalign=0.5),
-                            h_expand=True,
-                            style_classes=("notification-button",),
-                            on_clicked=lambda *_, action=action: activate(record, action),
-                        )
-                        for action, label in record.buttons
-                    ],
-                ),) if record.buttons else ()),
-                progress,
-            ],
-        )
-        super().__init__(
-            events="button-press",
-            child=card,
-            on_button_press_event=lambda *_: activate(record, record.action) or True,
-        )
 
 
 class NotificationHub:
@@ -332,22 +145,12 @@ class NotificationHub:
 
     def flush(self) -> bool:
         self.save_timer = 0
-        # the sender's actions die with this session: restored cards only dismiss
-        data = [{**vars(record), "action": "", "buttons": [], **{key: png(getattr(record, key)) for key in PIXBUFS}} for record in self.records]
-        HISTORY_FILE.write_text(json.dumps(data))
+        history.save(self.records)
         return False
 
     def restore(self) -> None:
-        try:
-            data = json.loads(HISTORY_FILE.read_text())
-        except (OSError, ValueError):
-            return
-        # oldest first, each lands on top; negative ids never clash with the bus's
-        for index, item in enumerate(reversed(data)):
-            try:
-                self.add_history(NotificationRecord(**{**item, "id": -1 - index, **{key: unpng(item.get(key)) for key in PIXBUFS}}))
-            except (TypeError, ValueError, GLib.Error):  # a record from an older schema
-                continue
+        for record in history.load():
+            self.add_history(record)
 
     def add(self, service: Notifications, notification_id: int) -> None:
         notification = service.get_notification_from_id(notification_id)
@@ -358,27 +161,7 @@ class NotificationHub:
         if notification.replaces_id:
             service.remove_notification(notification.replaces_id)
             self.remove_record(notification.replaces_id)
-        actions = [(action.identifier, action.label) for action in notification.actions]
-        body, image = body_image(notification.body)
-        buttons = [(action, label) for action, label in actions if action != "default"]
-        code = code_in(f"{notification.summary} {body}") if any(action in ("reply", "copy-code") for action, _ in buttons) else None
-        if code:  # a text with a one-time code from the iPhone: the code is the only thing to act on
-            buttons = [("copy-code", f"Copy {code}"), *((action, label) for action, label in buttons if action not in ("reply", "copy-code"))]
-        record = NotificationRecord(
-            notification.id,
-            notification.app_name,
-            notification.summary,
-            body,
-            notification.urgency,
-            "default" if any(action == "default" for action, _ in actions) else "",
-            notification.time,
-            app_icon(notification),
-            notification.urgency == 2 or notification.timeout == 0,
-            image,
-            avatar(notification),
-            buttons,
-            bool(notification.do_get_hint_entry("action-icons")),
-        )
+        record = from_notification(notification)
         self.add_history(record)
         for old in self.records[50:]:
             self.close(old)
@@ -530,10 +313,3 @@ class NotificationHub:
 
     def toggle_center(self) -> None:
         self.center_window.toggle()
-
-
-def build(context: Any) -> list[Any]:
-    context.notifications = NotificationHub(context.monitors[0], context.clock, lambda: bool(getattr(context, "lock", None) and context.lock.locked))
-    if mock.ENABLED:
-        context.notifications.seed_mock()
-    return [context.notifications.popup_window, context.notifications.center_window]

@@ -18,21 +18,25 @@ launch.sh
       ├─ services/                      источники данных (без GTK-виджетов)
       │   ├─ state.py                   State, PollingState, JsonState, parse_json
       │   ├─ system.py                  ClockState, SystemState, NetworkState, KeyboardState
-      │   ├─ dayline.py                 month_start/grid_days, Notes (→ ~/.local/share/dayline/notes.json), Sync с iCloud Reminders (pyicloud); вход: python -m services.dayline login
       │   ├─ monitors.py                Monitor, xrandr discovery
       │   ├─ launcher.py                источники лаунчера: apps, calc, sites, power, commands, clipboard, emoji
       │   ├─ pam.py                     проверка пароля через libpam (ctypes)
       │   ├─ polkit.py                  polkit authentication agent (D-Bus + PolkitAgent.Session)
       │   ├─ keyring.py                 gnome-keyring system prompter (D-Bus + Gcr.SecretExchange)
-      │   └─ askpass.py                 SSH_ASKPASS: askpass.sh → D-Bus → окно пароля
-      ├─ shared/                        переиспользуемые UI-кирпичи
+      │   ├─ askpass.py                 SSH_ASKPASS: askpass.sh → D-Bus → окно пароля
+      │   └─ tether.py                  тексты iPhone через tetherd (Messages и коды в уведомлениях)
+      ├─ shared/                        переиспользуемые UI-кирпичи (ui/month.py: MonthView + month_start/grid_days)
       │   ├─ constants.py               пути и layout-метрики (gaps, bar height)
       │   ├─ widgets.py                 text/stat/island, hover_reveal/slide, run, audio helpers
       │   └─ window.py                  MonitorWindow, PopupWindow
       └─ modules/                       UI-модули: view + build(context)
           ├─ registry.py                порядок сборки окон
           ├─ calendar.py                календарь на каждом мониторе
-          ├─ dayline.py                 Super+C: календарь с заметками и напоминаниями
+          ├─ dayline/                   Super+C: календарь с заметками и напоминаниями
+          │   ├─ times.py               разбор времени, шаг, повторы, «Today»: чистый Python
+          │   ├─ store.py               Note, Notes (→ ~/.local/share/dayline/notes.json)
+          │   ├─ icloud.py              Sync с iCloud Reminders (pyicloud); вход: python -m modules.dayline.icloud login
+          │   └─ window.py              панель
           ├─ sysmon.py                  панель системного монитора
           ├─ claude.py                  лимиты Claude: шкала сессии в баре + панель (5ч/неделя, сброс); данные — scripts/claude.py
           ├─ sound.py                   панель звука: выход/вход, громкость, устройство
@@ -40,7 +44,13 @@ launch.sh
           ├─ bar.py                     status bar + workspaces
           ├─ music.py                   music popup
           ├─ volume_osd.py              OSD: громкость и раскладка
-          ├─ notifications.py           popup + notification center
+          ├─ notifications/             popup + notification center
+          │   ├─ record.py              NotificationRecord, чтение с шины, история на диске
+          │   ├─ card.py                карточка (popup и история)
+          │   └─ hub.py                 NotificationHub: стек попапов, центр, таймауты, DND
+          ├─ messages/                  Super+T: тексты iPhone
+          │   ├─ format.py              номера, дни, поиск: чистый Python
+          │   └─ window.py              панель
           ├─ launcher.py                лаунчер (замена rofi)
           ├─ lock.py                    экран блокировки
           └─ auth.py                    окно пароля для polkit, gnome-keyring и ssh askpass
@@ -51,6 +61,14 @@ sites.toml                               сайты для лаунчера
 ```
 
 Зависимости идут только вниз: `config.py → modules → shared → services`.
+
+**Модуль-папка.** Модуль остаётся одним файлом, пока он небольшой. Когда в нём
+больше ~400 строк и смешаны данные, логика и вид, он становится папкой:
+`__init__.py` (только `build`, импорты внутри него, чтобы `python -m
+modules.x.файл` не грузил файл дважды), чистая логика без GTK со своим
+self-check, данные/хранилище, `window.py`. Сервис, который нужен одному
+модулю, переезжает в его папку; общий (часы, мониторы, tether) остаётся в
+`services/`. Модули-папки сейчас: `dayline`, `notifications`, `messages`.
 Модуль не импортирует другой UI-модуль (исключение — `bar` получает
 `CalendarWindow` для клика по часам). Второе исключение: `services/launcher.py`
 берёт из `shared` пути и `run`/`copy_text`, потому что строки лаунчера сами
@@ -63,9 +81,10 @@ runtime остаётся только Fabric implementation.
 
 Notification manager перенесён на Fabric на уровне UI и lifecycle:
 
-- `modules/notifications.py::NotificationHub` создаёт popup stack и notification center;
-- `modules/notifications.py::NotificationCard` отвечает за карточки, actions, close и DND;
-- `build()` в том же файле подключает модуль через registry;
+- `modules/notifications/hub.py::NotificationHub` создаёт popup stack и notification center, ведёт DND;
+- `modules/notifications/card.py::NotificationCard` отвечает за карточку, actions и close;
+- `modules/notifications/record.py` читает уведомление с шины и хранит историю;
+- `build()` в `modules/notifications/__init__.py` подключает модуль через registry;
 - `fabric.notifications.Notifications` принимает D-Bus notifications;
 - окна создаются как Fabric `X11Window` и входят в `Application("fabric-shell", ...)`.
 

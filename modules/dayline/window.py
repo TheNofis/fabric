@@ -1,9 +1,8 @@
-"""Dayline (Super+C): month grid, the notes of the picked day, and what is up next.
+"""Dayline's panel: month grid and up next on the left, the picked day and the composer on the right.
 
-Notes carry a date (or none) and an optional time; a timed note becomes a notification when it is due.
 Type and Enter adds to the picked day; click a note to edit it, then click a day to move it.
-With an iCloud account the notes are Reminders: one list shows at a time (tabs, Ctrl+Tab),
-the chip in the composer picks the list a note goes to, the circle completes it.
+With iCloud one list shows at a time (tabs, Ctrl+Tab), the chip in the composer picks the list
+a note goes to, the circle completes it.
 """
 
 from __future__ import annotations
@@ -18,23 +17,20 @@ from fabric.widgets.entry import Entry
 from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import Gdk, GLib, Gtk, Pango
 
-from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_time, split_time, step_time
+from modules.dayline.store import Note, Notes
+from modules.dayline.times import parse_time, relative, split_time, step_time
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
 from shared.ui import DateHeading, Glider, HintEntry, MonthView, icon_button, lift_inner
-from shared.widgets import css, flag, line, run, slide, text, wrapped
+from shared.ui.month import grid_days, month_start
+from shared.widgets import css, flag, line, slide, text, wrapped
 from shared.window import FocusPopup
 
 PRIORITY_MARK = {9: "!", 5: "!!", 1: "!!!"}  # Apple: 9 low, 5 medium, 1 high
 PRIORITY_CYCLE = [0, 9, 5, 1]
 PRIORITY_NAME = {0: "none", 9: "low", 5: "medium", 1: "high"}
 ALL = "*"  # the tab that shows every list at once
-
-
-def relative(day: date, today: date) -> str:
-    delta = (day - today).days
-    return {0: "Today", 1: "Tomorrow", -1: "Yesterday"}.get(delta) or (f"In {delta} days" if delta > 0 else f"{-delta} days ago")
 
 
 def note_text(value: str, wide: bool, *classes: str) -> Gtk.Label:
@@ -505,25 +501,3 @@ class DaylineWindow(FocusPopup):
             else:
                 hint = f"Enter adds to {where}"
         self.caption.set_text(hint)
-
-
-def remind(notes: Notes, now: datetime) -> None:
-    for note in notes.due(now):
-        # a reminder missed while the shell was off still shows, unless it is stale
-        if now - note.when < timedelta(hours=12):
-            run("notify-send", "-a", "Dayline", "-i", "x-office-calendar", note.text, f"{note.time} · {relative(date.fromisoformat(note.day), now.date())}")
-
-
-def build(context: Any) -> list[Any]:
-    context.notes = Notes()
-    context.dayline = DaylineWindow(context.monitors[0], context.clock, context.notes)
-    context.clock.subscribe(lambda now: remind(context.notes, now))
-    if not mock.ENABLED:
-        sync = Sync(context.notes, lambda title, body: run("notify-send", "-a", "Dayline", "-i", "x-office-calendar", title, body))
-        context.dayline.connect("show", lambda *_: sync.run())  # fresh from iCloud whenever the panel opens
-    return [context.dayline]
-
-
-if __name__ == "__main__":
-    today = date(2026, 9, 28)
-    assert [relative(today + timedelta(days=d), today) for d in (0, 1, -1, 3, -4)] == ["Today", "Tomorrow", "Yesterday", "In 3 days", "4 days ago"]

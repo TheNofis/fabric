@@ -8,7 +8,7 @@ from typing import Any
 from fabric.widgets.box import Box
 from gi.repository import Gdk, Gtk
 
-from services.dayline import grid_days, month_start
+from shared.ui.month import grid_days, month_start
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState

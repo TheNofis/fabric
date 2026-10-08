@@ -17,6 +17,18 @@ Cell = tuple[Gtk.Button, Gtk.Label]
 MONDAY = date(2024, 1, 1)
 
 
+def month_start(day: date, shift: int = 0) -> date:
+    index = day.year * 12 + day.month - 1 + shift
+    return date(index // 12, index % 12 + 1, 1)
+
+
+def grid_days(month: date) -> list[date]:
+    """Six Monday-first weeks covering the month, so the panel never changes height."""
+    first = month - timedelta(days=month.weekday())
+    return [first + timedelta(days=i) for i in range(42)]
+
+
+
 class MonthPages(Gtk.Stack):
     """Two pages of 42 day cells: turning the month fills the hidden page and slides it in
     from the side it comes from, so the direction of travel is visible."""
@@ -100,3 +112,11 @@ class DateHeading(Box):
         self.number.set_text(str(day.day))
         self.weekday.set_text(day.strftime("%A"))
         self.detail.set_text(detail)
+
+
+if __name__ == "__main__":
+    assert month_start(date(2026, 12, 15), 1) == date(2027, 1, 1)
+    assert month_start(date(2026, 1, 31), -1) == date(2025, 12, 1)
+    days = grid_days(date(2026, 9, 1))
+    assert days[0] == date(2026, 8, 31) and days[0].weekday() == 0 and len(days) == 42
+    print("month: ok")
