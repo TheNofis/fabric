@@ -17,6 +17,8 @@ Components:
     slider(*classes, max_value=100)      controls.py volume-style Scale from 0; flag "dim" when muted
     meter(*classes, glide=True)          controls.py usage bar (Gtk.ProgressBar), "thin" for secondary;
                                                      flag "warn"/"alert" to tint it; glides to new values
+    Segmented(options, *classes)         segmented.py options side by side, the picked one under a thumb;
+                                                     select(option) glides it across, labels crossfade
     MonthPages(make_cell)                month.py    two 42-cell month grids; show(direction, fill) slides
     weekday_heads(days)                  month.py    weekday initials row aligned with MonthPages
     password_entry(on_activate)          inputs.py   masked Entry, Enter calls on_activate
@@ -32,5 +34,6 @@ from shared.ui.inputs import password_entry, password_field
 from shared.ui.layout import header, panel
 from shared.ui.month import MonthPages, weekday_heads
 from shared.ui.rows import list_row, row_list
+from shared.ui.segmented import Segmented
 
-__all__ = ["MonthPages", "amount", "big_value", "button", "check", "header", "list_row", "row_list", "meter", "nav_button", "panel", "password_entry", "password_field", "slider", "switch", "weekday_heads"]
+__all__ = ["MonthPages", "Segmented", "amount", "big_value", "button", "check", "header", "list_row", "row_list", "meter", "nav_button", "panel", "password_entry", "password_field", "slider", "switch", "weekday_heads"]

@@ -5,50 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 from fabric.widgets.box import Box
-from gi.repository import GLib, Gtk
+from gi.repository import GLib
 
 from services.monitors import Monitor
 from services.system import KeyboardState
 from services.state import JsonState
 from shared.constants import CONTENT_GAP
-from shared.ui import meter
-from shared.ui.controls import Tween
+from shared.ui import Segmented, meter
 from shared.widgets import flag, text, volume_icon, volume_text
 from shared.window import OverlayWindow
-
-
-class Segments(Box):
-    """Layouts side by side on the OSD glass; the picked one sits under a thumb that glides across
-    on a switch. The thumb is styled in CSS (.layout-osd-thumb) and painted under the labels."""
-
-    def __init__(self, names: tuple[str, ...]):
-        self.names = names
-        self.items = [text(name.upper(), "layout-osd-item") for name in names]
-        for label in self.items:
-            label.set_hexpand(True)
-        super().__init__(homogeneous=True, h_expand=True, style_classes=("layout-osd-segments",), children=self.items)
-        self.position = 0.0  # segment index, fractional mid-glide
-        self.tween = Tween(self, lambda: self.position, self.move)
-        self.connect("draw", self.paint)  # before the default handler: the thumb sits under the labels
-
-    def move(self, position: float) -> None:
-        self.position = position
-        self.queue_draw()
-
-    def select(self, name: str, animate: bool) -> None:
-        for label, item in zip(self.items, self.names):
-            flag(label, "active", item == name)
-        if name in self.names:
-            (self.tween.to if animate else self.tween.jump)(float(self.names.index(name)))
-
-    def paint(self, _widget: Gtk.Widget, cr: Any) -> bool:
-        width = self.get_allocated_width() / len(self.items)
-        context = self.get_style_context()
-        context.save()
-        context.add_class("layout-osd-thumb")
-        Gtk.render_background(context, cr, self.position * width, 0, width, self.get_allocated_height())
-        context.restore()
-        return False
 
 
 class VolumeOSD(OverlayWindow):
@@ -59,7 +24,7 @@ class VolumeOSD(OverlayWindow):
         self.scale = meter("volume-osd-meter")
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
-        self.layouts = Segments(KeyboardState.LAYOUTS)
+        self.layouts = Segmented(tuple(name.upper() for name in KeyboardState.LAYOUTS), "layout-osd-segments")
         self.layout_row = Box(h_expand=True, style_classes=("layout-osd-row",), children=[self.layouts])
         self.layout = None
         body = Box(style_classes=("volume-osd",), children=[self.volume_row, self.layout_row])
@@ -86,7 +51,7 @@ class VolumeOSD(OverlayWindow):
 
     def update_layout(self, value: dict[str, Any]) -> None:
         layout = value.get("layout")
-        self.layouts.select(layout, animate=self.layout is not None)  # the startup state just lands
+        self.layouts.select((layout or "").upper(), animate=self.layout is not None)  # the startup state just lands
         # Caps Lock tints the picked layout cyan (the shell's caps color); the OSD opens on layout switches alone
         flag(self.layouts, "caps-lock", bool(value.get("caps")))
         # the first value is the startup state, not a switch
