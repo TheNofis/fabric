@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ HISTORY = 60  # seconds of CPU load in the graph, recorded while the panel is cl
 HOT = 80  # °C, the bar's overheat threshold
 FULL = 0.9  # a meter past this fill turns red
 GIB = 1073741824
+THERMO = "\U000F050F"  # nf-md-thermometer
 
 
 def fill(value: float, total: float, bar: Gtk.ProgressBar) -> None:
@@ -99,6 +101,50 @@ class Graph(Gtk.DrawingArea):
         return False
 
 
+class Cores(Gtk.DrawingArea):
+    """Per-core load as a row of short columns under the graph, one histogram for any core count.
+    Colour comes from CSS `color`, like the graph."""
+
+    def __init__(self):
+        super().__init__()
+        self.loads: list[float] = []
+        css(self, "sysmon-cores")
+        self.set_size_request(-1, 28)
+        self.connect("draw", self.on_draw)
+
+    def set_loads(self, loads: list[float]) -> None:
+        self.loads = loads
+        self.set_tooltip_text("  ".join(f"{load:.0f}%" for load in loads))
+        self.queue_draw()
+
+    def on_draw(self, _area: Gtk.DrawingArea, cr: cairo.Context) -> bool:
+        if not self.loads:
+            return False
+        width, height = self.get_allocated_width(), self.get_allocated_height()
+        color = self.get_style_context().get_color(self.get_state_flags())
+        gap = 3
+        cr.set_source_rgba(color.red, color.green, color.blue, 0.25)  # baseline, so the columns read as bars
+        cr.rectangle(0, height - 1, width, 1)
+        cr.fill()
+        height -= 2
+        column = (width - gap * (len(self.loads) - 1)) / len(self.loads)
+        for index, load in enumerate(self.loads):
+            x = index * (column + gap)
+            for top, alpha in ((0, 0.10), (height * (1 - min(load, 100) / 100), color.alpha)):
+                if height - top < 1:
+                    continue
+                cr.new_sub_path()
+                radius = min(2, (height - top) / 2)
+                cr.arc(x + radius, top + radius, radius, math.pi, 1.5 * math.pi)
+                cr.arc(x + column - radius, top + radius, radius, 1.5 * math.pi, 0)
+                cr.line_to(x + column, height)
+                cr.line_to(x, height)
+                cr.close_path()
+                cr.set_source_rgba(color.red, color.green, color.blue, alpha)
+                cr.fill()
+        return False
+
+
 class SystemMonitorWindow(BarPanel):
     def __init__(self, monitor: Monitor, system: SystemState, gpu: JsonState, history: deque[float]):
         try:
@@ -111,14 +157,14 @@ class SystemMonitorWindow(BarPanel):
         self.freq = text("", "sysmon-value")
         self.load = text("", "sysmon-value")
         self.graph = Graph(history)
-        self.cores = [meter("thin") for _ in system.value["cores"]]
+        self.cores = Cores()
         cpu = section(
             "CPU",
             text(model, "ui-detail"),
             self.cpu,
             [self.cpu_temp, self.freq, self.load],
             self.graph,
-            Box(spacing=4, homogeneous=True, children=self.cores),
+            Box(orientation="v", spacing=4, style_classes=("sysmon-row",), children=[text("Cores", "sysmon-label", xalign=0), self.cores]),
         )
 
         self.memory = big_value()
@@ -173,14 +219,12 @@ class SystemMonitorWindow(BarPanel):
         if not self.get_visible():
             return
         self.cpu.set_markup(amount(f"{value['cpu']:.0f}", "%"))
-        self.cpu_temp.set_text(f"{value['temp']:.0f}°")
+        self.cpu_temp.set_text(f"{THERMO} {value['temp']:.0f}°")
         flag(self.cpu_temp, "alert", value["temp"] >= HOT)
         self.freq.set_text(f"{value['freq']:.1f} GHz")
         self.load.set_text(f"load {value['load']:.2f}")
         self.graph.queue_draw()
-        for index, (bar, load) in enumerate(zip(self.cores, value["cores"])):
-            bar.set_fraction(load / 100)
-            bar.set_tooltip_text(f"Core {index + 1}: {load:.0f}%")
+        self.cores.set_loads(value["cores"])
 
         self.memory.set_markup(amount(f"{value['used'] / GIB:.1f}", "GB"))
         self.memory_total.set_text(f"of {value['total'] / GIB:.1f} GB")
@@ -190,7 +234,7 @@ class SystemMonitorWindow(BarPanel):
 
         self.disk.set_markup(amount(f"{value['disk_used'] / GIB:.0f}", "GB"))
         self.disk_total.set_text(f"of {value['disk_total'] / GIB:.0f} GB")
-        self.disk_temp.set_text(f"{value['disk_temp']:.0f}°")
+        self.disk_temp.set_text(f"{THERMO} {value['disk_temp']:.0f}°")
         self.disk_temp.set_visible(bool(value["disk_temp"]))
         flag(self.disk_temp, "alert", value["disk_temp"] >= HOT)
         fill(value["disk_used"], value["disk_total"], self.disk_meter)
@@ -203,7 +247,7 @@ class SystemMonitorWindow(BarPanel):
         self.gpu_name.set_text(str(value["name"]).removeprefix("NVIDIA "))
         load, temp, power = value.get("load"), value.get("temp"), value.get("power")
         self.gpu.set_markup(amount("–" if load is None else f"{load:.0f}", "%"))
-        self.gpu_temp.set_text("–°" if temp is None else f"{temp:.0f}°")
+        self.gpu_temp.set_text(f"{THERMO} –°" if temp is None else f"{THERMO} {temp:.0f}°")
         flag(self.gpu_temp, "alert", (temp or 0) >= HOT)
         self.power.set_visible(power is not None)
         self.power.set_text(f"{power or 0:.0f} W")
