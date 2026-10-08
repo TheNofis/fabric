@@ -20,7 +20,7 @@ class VoiceWindow(OverlayWindow):
     def __init__(self, monitor: Monitor, voice: JsonState):
         self.voice = voice
         self.icon = text("󰍬", "voice-osd-icon")
-        self.label = text("Loading model…", "voice-osd-text", xalign=0)
+        self.label = text("Loading model… · Super+V to stop", "voice-osd-text", xalign=0)
         self.label.set_ellipsize(Pango.EllipsizeMode.START)  # the newest words stay visible
         self.label.set_hexpand(True)
         body = Box(spacing=10, style_classes=("volume-osd", "voice-osd"), children=[self.icon, self.label])
@@ -32,18 +32,18 @@ class VoiceWindow(OverlayWindow):
             size=(460, 58),
             child=body,
         )
-        self.clip_to(18, body)
+        self.clip_to(22, body)
         voice.subscribe(self.update)
 
     def update(self, value: dict[str, Any]) -> None:
         state = value.get("state")
         flag(self.icon, "speaking", state == "speaking")
         if state == "loading":
-            self.label.set_text("Loading model…")
+            self.label.set_text("Loading model… · Super+V to stop")
         elif state == "speaking":
             self.label.set_text(value.get("partial") or "…")
         else:
-            self.label.set_text(value.get("last") or "Speak — phrases are typed after a pause")
+            self.label.set_text(value.get("last") or "Speak — phrases are typed after a pause · Super+V to stop")
         flag(self.label, "muted", state != "speaking")
 
     def toggle(self) -> None:
