@@ -19,6 +19,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 from services.launcher import Item, Sources
 from services import mock
 from services.monitors import Monitor
+from shared.ui import Glider
 from shared.widgets import flag, slide, text
 from shared.window import PopupWindow
 
@@ -45,7 +46,9 @@ class LauncherWindow(PopupWindow):
         self.hint = text("> command     c: clipboard     :emoji     ssh", "launcher-hint", xalign=0)
         self.entry.connect("changed", lambda *_: self.refresh())
         self.entry.connect("activate", lambda *_: self.launch(self.selected))
-        self.list = Box(orientation="v", spacing=2, style_classes=("launcher-list",))
+        self.rows = Box(orientation="v", spacing=2, h_expand=True)  # bare: the selection thumb is painted under the rows
+        self.list = Box(style_classes=("launcher-list",), children=[self.rows])
+        self.glider = Glider(self.rows, "launcher-thumb")
         self.reveal = slide(self.list, "down")
         panel = Box(
             orientation="v",
@@ -84,7 +87,7 @@ class LauncherWindow(PopupWindow):
         self.hint.set_visible(not query)
         self.items = self.sources.search(query, lambda app: app.get_icon_pixbuf(28, "application-x-executable"), self.web_icon)
         self.selected, self.armed, self.labels = 0, None, []
-        for child in self.list.get_children():
+        for child in self.rows.get_children():
             child.destroy()
         for index, item in enumerate(self.items):
             icon = text(item.icon, "launcher-glyph") if isinstance(item.icon, str) else Image(pixbuf=item.icon)
@@ -107,14 +110,15 @@ class LauncherWindow(PopupWindow):
             # motion, not enter: a re-render under a resting pointer sends enter but no motion
             row.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
             row.connect("motion-notify-event", lambda *_, i=index: self._hover(i))
-            self.list.add(row)
+            self.rows.add(row)
         self.list.show_all()
-        self._highlight()
+        self._highlight(animate=False)  # a new result list: the thumb lands on the first row
         self.reveal.set_reveal_child(bool(self.items))
 
-    def _highlight(self) -> None:
-        for index, row in enumerate(self.list.get_children()):
+    def _highlight(self, animate: bool = True) -> None:
+        for index, row in enumerate(self.rows.get_children()):
             flag(row, "selected", index == self.selected)
+        self.glider.to(self.selected if self.items else None, animate)
 
     def _hover(self, index: int) -> None:
         if index != self.selected:
@@ -134,7 +138,7 @@ class LauncherWindow(PopupWindow):
     def _disarm(self) -> None:
         if self.armed is not None:
             self.labels[self.armed].set_text(self.items[self.armed].label)
-            flag(self.list.get_children()[self.armed], "armed", False)
+            flag(self.rows.get_children()[self.armed], "armed", False)
             self.armed = None
 
     def launch(self, index: int) -> None:
@@ -145,7 +149,7 @@ class LauncherWindow(PopupWindow):
             self._disarm()
             self.armed = index
             self.labels[index].set_text(f"{item.label}: press Enter or click again to confirm")
-            flag(self.list.get_children()[index], "armed", True)
+            flag(self.rows.get_children()[index], "armed", True)
             return
         self.hide()
         item.action()

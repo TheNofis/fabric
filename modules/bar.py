@@ -24,7 +24,7 @@ from services.monitors import Monitor
 from services.state import JsonState
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
 from shared.constants import BAR_HEIGHT
-from shared.ui import slider
+from shared.ui import Glider, slider
 from shared.widgets import flag, hover_reveal, island, run, scroll_up, slide, stat, text, toggle_mute, volume_icon, volume_text
 from shared.window import MonitorWindow
 
@@ -33,7 +33,10 @@ class WorkspacesView(EventBox):
     def __init__(self, monitor: str, state: JsonState):
         self.monitor = monitor
         self.shown: list[dict[str, Any]] | None = None
-        self.row = Box(spacing=2, style_classes=("island", "workspaces"))
+        # buttons sit in a bare box inside the island: the focused thumb is painted under them
+        self.buttons = Box(spacing=2)
+        self.row = Box(style_classes=("island", "workspaces"), children=[self.buttons])
+        Glider(self.buttons, "ws-thumb", follow="focused")
         super().__init__(
             events="scroll",
             child=self.row,
@@ -61,7 +64,7 @@ class WorkspacesView(EventBox):
                     ),
                 )
             )
-        self.row.children = buttons
+        self.buttons.children = buttons
         self.row.show_all()
 
     @staticmethod

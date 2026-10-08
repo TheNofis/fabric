@@ -23,7 +23,7 @@ from services.dayline import Note, Notes, Sync, grid_days, month_start, parse_ti
 from services import mock
 from services.monitors import Monitor
 from services.system import ClockState
-from shared.ui import MonthPages, nav_button, weekday_heads
+from shared.ui import Glider, MonthPages, nav_button, weekday_heads
 from shared.widgets import css, flag, run, slide, text
 from shared.window import PopupWindow
 
@@ -77,6 +77,7 @@ class DaylineWindow(PopupWindow):
 
         # top: one tab per iCloud list
         self.tabs = Box(spacing=2, style_classes=("dayline-tabs",))
+        Glider(self.tabs, "dayline-tab-thumb", follow="active")
         self.tabs.set_no_show_all(True)
 
         # left: month grid with a dot under days that have notes, then what is up next
@@ -481,7 +482,6 @@ class DaylineWindow(PopupWindow):
         self.tabs.set_visible(bool(self.notes.lists))
         for tab in self.tabs.get_children():
             flag(tab, "active", tab.list_id == self.tab)
-
     def render_composer(self) -> None:
         self.prio.get_child().set_text(PRIORITY_MARK.get(self.priority, "!"))
         self.prio.set_tooltip_text(f"Priority: {PRIORITY_NAME.get(self.priority, 'none')} · click to change")
