@@ -24,40 +24,50 @@ def slider(*classes: str, max_value: int = 100, **kwargs: Any) -> Scale:
     return Scale(min_value=0, max_value=max_value, style_classes=("ui-slider", *classes), **kwargs)
 
 
-class Meter(Gtk.ProgressBar):
-    """ProgressBar whose set_fraction glides to the new value while it is on screen."""
+class Tween:
+    """Eases a value to a target on `widget`'s frame clock: ease-out cubic over 220ms (the "normal"
+    motion token). Retargeting mid-way starts from where the value is; frames run only while mapped."""
 
-    DURATION = 220_000  # µs, the shell's "normal" motion token
+    DURATION = 220_000  # µs
 
-    def __init__(self, glide: bool, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.glide, self.tick, self.start = glide, 0, 0
+    def __init__(self, widget: Gtk.Widget, get: Callable[[], float], set: Callable[[float], Any]):
+        self.widget, self.get, self.set = widget, get, set
+        self.tick = self.start = 0
         self.origin = self.target = 0.0
 
-    def set_fraction(self, fraction: float) -> None:
-        if not (self.glide and self.get_mapped()):
-            self.stop()
-            super().set_fraction(fraction)
-            return
-        self.origin, self.target, self.start = self.get_fraction(), fraction, 0  # retarget mid-glide from where it is
+    def to(self, target: float) -> None:
+        self.origin, self.target, self.start = self.get(), target, 0
         if not self.tick:
-            self.tick = self.add_tick_callback(self.step)
+            self.tick = self.widget.add_tick_callback(self.step)
+
+    def jump(self, value: float) -> None:
+        if self.tick:
+            self.widget.remove_tick_callback(self.tick)
+            self.tick = 0
+        self.set(value)
 
     def step(self, _widget: Gtk.Widget, clock: Any) -> bool:
         now = clock.get_frame_time()
         self.start = self.start or now
         t = min((now - self.start) / self.DURATION, 1.0)
-        eased = 1 - (1 - t) ** 3  # ease-out cubic: quick to move, soft to land
-        super().set_fraction(self.origin + (self.target - self.origin) * eased)
+        eased = 1 - (1 - t) ** 3  # quick to move, soft to land
+        self.set(self.origin + (self.target - self.origin) * eased)
         if t < 1:
             return True
         self.tick = 0
         return False
 
-    def stop(self) -> None:
-        if self.tick:
-            self.remove_tick_callback(self.tick)
-            self.tick = 0
+
+class Meter(Gtk.ProgressBar):
+    """ProgressBar whose set_fraction glides to the new value while it is on screen."""
+
+    def __init__(self, glide: bool, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.glide = glide
+        self.tween = Tween(self, self.get_fraction, lambda value: Gtk.ProgressBar.set_fraction(self, value))
+
+    def set_fraction(self, fraction: float) -> None:
+        (self.tween.to if self.glide and self.get_mapped() else self.tween.jump)(fraction)
 
 
 def meter(*classes: str, glide: bool = True) -> Meter:

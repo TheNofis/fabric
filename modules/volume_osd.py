@@ -4,16 +4,69 @@ from __future__ import annotations
 
 from typing import Any
 
+import math
+
 from fabric.widgets.box import Box
-from gi.repository import GLib
+from gi.repository import Gdk, GLib, Gtk
 
 from services.monitors import Monitor
 from services.system import KeyboardState
 from services.state import JsonState
 from shared.constants import CONTENT_GAP
 from shared.ui import meter
+from shared.ui.controls import Tween
 from shared.widgets import flag, text, volume_icon, volume_text
 from shared.window import OverlayWindow
+
+
+class Segments(Box):
+    """One pill split into segments (the notification actions' shape). The active fill is painted
+    under them and flows to the picked segment, its corners reshaping on the way."""
+
+    SEAM_RADIUS = 5  # inner corners, as .notification-button
+
+    def __init__(self, names: tuple[str, ...]):
+        self.items = [text(name.upper(), "layout-osd-item") for name in names]
+        self.names = names
+        super().__init__(spacing=2, h_expand=True, style_classes=("layout-osd-segments",), children=self.items)
+        for label in self.items:
+            label.set_hexpand(True)
+        self.position = 0.0  # segment index, fractional mid-flow
+        self.tween = Tween(self, lambda: self.position, self.move)
+        self.connect("draw", self.paint)  # before the default handler: the fill sits under the segments
+
+    def move(self, position: float) -> None:
+        self.position = position
+        self.queue_draw()
+
+    def select(self, name: str, animate: bool) -> None:
+        for label, item in zip(self.items, self.names):
+            flag(label, "active", item == name)
+        if name in self.names:
+            (self.tween.to if animate else self.tween.jump)(float(self.names.index(name)))
+
+    def paint(self, _widget: Gtk.Widget, cr: Any) -> bool:
+        last = len(self.items) - 1
+        i = min(int(self.position), last)
+        j, t = min(i + 1, last), self.position - i
+        box, a, b = self.get_allocation(), self.items[i].get_allocation(), self.items[j].get_allocation()
+        lerp = lambda p, q: p + (q - p) * t
+        x, y, width, height = lerp(a.x, b.x) - box.x, a.y - box.y, lerp(a.width, b.width), a.height
+        full = height / 2
+
+        def corners(k: int) -> tuple[float, float]:  # (left, right) radius of segment k
+            return (full if k == 0 else self.SEAM_RADIUS, full if k == last else self.SEAM_RADIUS)
+
+        left, right = (lerp(p, q) for p, q in zip(corners(i), corners(j)))
+        cr.new_sub_path()
+        cr.arc(x + width - right, y + right, right, -math.pi / 2, 0)
+        cr.arc(x + width - right, y + height - right, right, 0, math.pi / 2)
+        cr.arc(x + left, y + height - left, left, math.pi / 2, math.pi)
+        cr.arc(x + left, y + left, left, math.pi, 3 * math.pi / 2)
+        cr.close_path()
+        Gdk.cairo_set_source_rgba(cr, self.get_style_context().get_color(self.get_state_flags()))  # CSS color = fill
+        cr.fill()
+        return False
 
 
 class VolumeOSD(OverlayWindow):
@@ -25,20 +78,16 @@ class VolumeOSD(OverlayWindow):
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
         self.caps = text("󰪛", "volume-osd-percent", "layout-osd-caps")
-        self.layouts = {
-            name: text(name.upper(), "layout-osd-item") for name in KeyboardState.LAYOUTS
-        }
+        self.layouts = Segments(KeyboardState.LAYOUTS)
         self.layout_row = Box(
             spacing=8,
             h_expand=True,
             children=[
                 text("󰌌", "volume-osd-icon", "volume-osd-glyph"),
-                Box(spacing=4, h_expand=True, children=list(self.layouts.values())),
+                self.layouts,
                 self.caps,
             ],
         )
-        for label in self.layouts.values():
-            label.set_hexpand(True)
         self.layout = None
         body = Box(style_classes=("volume-osd",), children=[self.volume_row, self.layout_row])
         super().__init__(
@@ -64,8 +113,7 @@ class VolumeOSD(OverlayWindow):
 
     def update_layout(self, value: dict[str, Any]) -> None:
         layout = value.get("layout")
-        for name, label in self.layouts.items():
-            flag(label, "active", name == layout)
+        self.layouts.select(layout, animate=self.layout is not None)  # the startup state just lands
         # caps only updates the indicator; the OSD opens on layout switches alone
         flag(self.caps, "active", bool(value.get("caps")))
         # the first value is the startup state, not a switch
