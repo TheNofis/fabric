@@ -333,7 +333,7 @@ tooltip {
 .layout-osd-thumb { background-color: alpha(@fg, 0.18); box-shadow: inset 0 1px @highlight; border-radius: 15px; }
 .layout-osd-item { color: @muted; font-weight: 500; transition: color 220ms cubic-bezier(0.32, 0.72, 0, 1); }
 .layout-osd-item.active { color: @fg; font-weight: 600; }
-.layout-osd-caps { color: @info; font-size: 16px; margin-right: 8px; }
+.layout-osd-segments.caps-lock .layout-osd-item.active { color: @info; }  /* Caps Lock: cyan, like the bar's caps pill */
 .voice-osd-icon { color: @muted; font-size: 18px; }
 .voice-osd-icon.speaking { color: @critical; }
 .voice-osd-text { color: @fg; font-size: 13px; }

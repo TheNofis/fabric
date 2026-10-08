@@ -59,15 +59,8 @@ class VolumeOSD(OverlayWindow):
         self.scale = meter("volume-osd-meter")
         self.timer = 0
         self.volume_row = Box(spacing=8, h_expand=True, children=[self.icon, self.scale, self.percent])
-        self.caps = text("󰪛", "layout-osd-caps")
-        self.caps.set_no_show_all(True)  # shown only while Caps Lock is on: the track takes the room otherwise
         self.layouts = Segments(KeyboardState.LAYOUTS)
-        self.layout_row = Box(
-            spacing=10,
-            h_expand=True,
-            style_classes=("layout-osd-row",),
-            children=[self.layouts, self.caps],
-        )
+        self.layout_row = Box(h_expand=True, style_classes=("layout-osd-row",), children=[self.layouts])
         self.layout = None
         body = Box(style_classes=("volume-osd",), children=[self.volume_row, self.layout_row])
         super().__init__(
@@ -94,8 +87,8 @@ class VolumeOSD(OverlayWindow):
     def update_layout(self, value: dict[str, Any]) -> None:
         layout = value.get("layout")
         self.layouts.select(layout, animate=self.layout is not None)  # the startup state just lands
-        # caps only updates the indicator; the OSD opens on layout switches alone
-        self.caps.set_visible(bool(value.get("caps")))
+        # Caps Lock tints the picked layout cyan (the shell's caps color); the OSD opens on layout switches alone
+        flag(self.layouts, "caps-lock", bool(value.get("caps")))
         # the first value is the startup state, not a switch
         if self.layout is not None and layout != self.layout:
             self.open_temporarily(self.layout_row)
