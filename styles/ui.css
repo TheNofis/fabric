@@ -14,19 +14,28 @@
 .ui-rows { margin: 0 -8px; }
 .ui-row { padding: 6px 8px; border-radius: 8px; color: @muted; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .ui-row:hover { color: @fg; background-color: alpha(@fg, 0.06); }
-.ui-row.default { color: @fg; background-color: alpha(@fg, 0.10); }
+.ui-row.default { color: @fg; background-color: alpha(@fg, 0.12); }
+.ui-row.default:hover { background-color: alpha(@fg, 0.16); }
+.ui-row:active { background-color: alpha(black, 0.25); }  /* press darkens, like every target in the shell */
 .ui-row:disabled { color: alpha(@fg, 0.40); }
 .ui-row-icon { font-size: 14px; min-width: 16px; }
 .ui-row-title { font-size: 12px; }
 .ui-row.default .ui-row-title { font-weight: 500; }
 .ui-check { color: @accent; font-size: 13px; }
 
-/* button(): pill; primary is the accent-filled default action */
-.ui-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; margin-top: 6px; transition: background-color 150ms ease-out; }
+/* button(): pill; primary is the accent-filled default action. Font rules go on the label:
+   `*` sets font-size and weight on every node, so they never inherit from the button.
+   Inside a panel the pill is compact (12px), dialogs keep the full size. */
+.ui-button { background-color: alpha(@fg, 0.10); color: @fg; border-radius: 999px; padding: 5px 16px; -gtk-outline-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .ui-button:hover { background-color: alpha(@fg, 0.16); }
 .ui-button:active { background-color: alpha(black, 0.25); }
-.ui-button.primary { background-color: @accent_fill; color: white; font-weight: 600; }
+.ui-button.primary { background-color: @accent_fill; color: white; }
+.ui-button.primary label { font-weight: 600; }
 .ui-button.primary:hover { background-color: @accent; }
+.ui-button.primary:active { background-color: shade(@accent_fill, 0.85); }
+.ui-button:disabled, .ui-button.primary:disabled { background-color: alpha(@fg, 0.08); color: alpha(@fg, 0.40); }
+.ui-panel .ui-button { padding: 4px 14px; }
+.ui-panel .ui-button label { font-size: 12px; }
 
 /* nav_button() */
 .ui-nav { border-radius: 6px; padding: 3px 6px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
@@ -38,7 +47,8 @@
 /* password_field() / password_entry(): the lock screen's pill */
 .ui-field { min-width: 300px; padding: 9px 18px; border-radius: 999px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.14); }
 .ui-field-icon { color: @muted; font-size: 15px; }
-.ui-field-entry { color: @fg; caret-color: @fg; font-size: 14px; }
+.ui-field-entry { color: @fg; caret-color: @accent; font-size: 14px; }
+.ui-field-entry selection { background-color: alpha(@accent, 0.45); }
 .ui-field-entry:disabled { color: @muted; }
 .ui-field.failed { border-color: @critical; }
 

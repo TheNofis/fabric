@@ -67,7 +67,7 @@ class DisplayWindow(BarPanel):
         self.name_entry.connect("changed", lambda *_: self.sync_save())
         # override-redirect popups never get X focus from i3; without it the entry ignores keys
         self.name_entry.connect("button-press-event", lambda *_: self.take_focus() or False)
-        self.save_button = button("Save", lambda *_: self.store(self.name_entry.get_text()), "display-save", primary=True)
+        self.save_button = button("Save", lambda *_: self.store(self.name_entry.get_text()), primary=True)
         for widget in (self.edited, self.reset_button, self.update_button, self.empty, self.rows["brightness"]):
             widget.set_no_show_all(True)
 

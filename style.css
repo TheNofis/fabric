@@ -259,10 +259,8 @@ tooltip {
 .ui-row:hover .display-delete { color: @muted; }
 .ui-row .display-delete:hover, .ui-row .display-delete.armed { color: @critical; background-color: alpha(@critical, 0.14); }
 .ui-panel .display-form { min-width: 0; margin: 8px -8px 0; padding: 4px 4px 4px 14px; }
-.display-name, .display-save label, .display-link label { font-size: 12px; }
+.display-name, .display-link label { font-size: 12px; }
 .display-delete label { font-size: 13px; }
-.display-save { margin-top: 0; padding: 4px 14px; }
-.display-save:disabled { background-color: alpha(@fg, 0.08); color: alpha(@fg, 0.40); }
 
 /* Network panel: sound's rows; the connected network carries the fill and the accent check.
    Signal and lock glyphs stay neutral: strength is shape, not color. The switch is the only
@@ -275,7 +273,6 @@ tooltip {
 .net-hint.error { color: @critical; }
 .ui-panel .net-password { min-width: 0; margin: 2px -8px 0; padding: 7px 14px; }
 .net-password .ui-field-entry { font-size: 13px; }
-.net-action { margin-top: 0; padding: 4px 14px; font-size: 12px; }
 .net-options { margin: 2px 0 6px; }
 .net-action.armed { color: white; background-color: @critical_fill; }
 .net-more { color: @muted; min-width: 22px; min-height: 22px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
@@ -472,6 +469,7 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .auth-message { color: alpha(@fg, 0.80); font-size: 12px; margin-bottom: 6px; }
 .auth-label { color: @muted; font-size: 11px; font-weight: 500; }
 .auth .ui-field { min-width: 0; }
+.auth .ui-button { margin-top: 6px; }
 .auth-hint { color: @muted; font-size: 12px; }
 .auth-hint.failed { color: @critical; }
 .auth-check { color: alpha(@fg, 0.80); font-size: 12px; }
