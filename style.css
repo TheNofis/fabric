@@ -481,3 +481,104 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 
 /* Per-core load columns (sysmon.Cores) share the graph's colour. */
 .sysmon-cores { color: alpha(@fg, 0.70); }
+
+/* Messages (Super+T): Dayline's glass and type, one column that pushes. Accent marks only unread
+   state and the send action; people are neutral discs with initials, never a color each. The
+   transcript is a script, not bubbles: a meta line opens each run, your own words sit indented
+   and a step dimmer so the other side leads. */
+.messages {
+  border: 1px solid @border;
+  box-shadow: inset 0 1px @highlight;
+  background-color: @bg_panel;
+  border-radius: 20px;
+  color: @fg;
+}
+/* Pages span the whole panel (a sliding page leaves at the panel's edge). The scrollers run edge to edge
+   and pad their own content, so row fills never need negative margins: GTK3 repaints only a widget's
+   allocation, and a fill drawn past it leaves stale strips on hover. Everything else is inset. */
+.msg-page { padding: 18px 0 14px; }
+.msg-inset { margin: 0 20px; }
+.messages scrolledwindow { background-color: transparent; }
+.messages scrollbar { margin-right: 6px; background-color: transparent; }
+.messages scrollbar slider { min-width: 4px; min-height: 24px; border-radius: 999px; background-color: alpha(@fg, 0.22); }
+.messages scrollbar slider:hover { background-color: alpha(@fg, 0.36); }
+.msg-title { color: @fg; font-size: 15px; font-weight: 600; }
+.msg-status { color: @muted; font-size: 11px; }
+.msg-caption { color: @muted; font-size: 11px; padding: 0 2px; }
+
+.msg-icon-button { min-width: 28px; min-height: 28px; border-radius: 999px; color: @muted; background-color: transparent; -gtk-outline-radius: 999px;
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.msg-icon-button label { font-size: 15px; }
+.msg-icon-button:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.msg-icon-button:active { background-color: alpha(black, 0.25); }
+
+/* search and reply: Dayline's composer field */
+.msg-field { padding: 8px 12px; border-radius: 12px; border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: alpha(white, 0.08); }
+.msg-composer { padding: 5px 5px 5px 12px; }
+.msg-field-icon { color: @muted; font-size: 14px; }
+.msg-search-entry, .msg-reply-entry { color: @fg; caret-color: @accent; font-size: 13px; }
+.msg-search-entry selection, .msg-reply-entry selection, .msg-text selection { background-color: alpha(@accent, 0.45); color: @fg; }
+.msg-reply-entry:disabled { color: alpha(@fg, 0.40); }
+.msg-placeholder { color: alpha(@fg, 0.40); font-size: 13px; }
+.msg-send { min-width: 28px; min-height: 28px; border-radius: 999px; color: alpha(@fg, 0.40); background-color: alpha(@fg, 0.08);
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1), color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.msg-send label { font-size: 15px; }
+.msg-send.ready { color: white; background-color: @accent_fill; }
+.msg-send.ready:hover { background-color: @accent; }
+.msg-send:active { background-color: shade(@accent_fill, 0.85); }
+
+/* conversation rows: the selected one rides the gliding thumb, like the launcher */
+/* rows bleed 8px past the text column; the scrollbar runs in the 12px gutter beyond them */
+.msg-rows { padding: 0 12px; }
+.msg-row { padding: 8px; border-radius: 12px; background-color: transparent; transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.msg-row:hover { background-color: alpha(@fg, 0.06); }
+.msg-row.selected:hover { background-color: alpha(@fg, 0.04); }  /* over the thumb */
+.msg-row:active { background-color: alpha(black, 0.25); }
+.msg-thumb { background-color: alpha(@fg, 0.12); box-shadow: inset 0 1px @highlight; border-radius: 12px; }
+.msg-avatar { min-width: 38px; min-height: 38px; border-radius: 999px; background-color: alpha(@fg, 0.12); color: alpha(@fg, 0.85); font-size: 13px; font-weight: 600; }
+.msg-avatar.glyph { color: @muted; font-size: 18px; }
+.msg-avatar.small { min-width: 32px; min-height: 32px; font-size: 12px; }
+.msg-avatar.small.glyph { font-size: 16px; }
+.msg-name { color: @fg; font-size: 13px; font-weight: 500; }
+.msg-time { color: @muted; font-size: 11px; }
+.msg-preview { color: @muted; font-size: 12px; }
+.msg-row.unread .msg-name { font-weight: 600; }
+.msg-row.unread .msg-time { color: @accent; font-weight: 600; }
+.msg-row.unread .msg-preview { color: alpha(@fg, 0.80); }
+.msg-row.contact .msg-preview { font-size: 11px; }
+.msg-unread { min-width: 18px; min-height: 18px; padding: 0 5px; border-radius: 999px; background-color: @accent_fill; color: white; font-size: 10px; font-weight: 600; }
+.msg-unread-dot { min-width: 9px; min-height: 9px; border-radius: 999px; background-color: @accent; }
+.msg-section { color: @muted; font-size: 11px; font-weight: 600; margin: 12px 8px 4px; }
+.msg-code { padding: 3px 10px 3px 8px; border-radius: 999px; color: @fg; background-color: alpha(@fg, 0.10);
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.msg-code label { font-size: 12px; font-weight: 600; }
+.msg-code label:first-child { color: @muted; font-weight: 400; }
+.msg-code:hover { background-color: alpha(@fg, 0.18); }
+.msg-code:active { background-color: alpha(black, 0.25); }
+.msg-empty { padding: 32px 0; }
+.msg-empty-title { color: @fg; font-size: 13px; font-weight: 500; }
+.msg-empty-hint { color: @muted; font-size: 11px; }
+
+/* one conversation */
+.msg-head { padding-bottom: 12px; border-bottom: 1px solid alpha(white, 0.08); }
+.msg-head-name { color: @fg; font-size: 14px; font-weight: 600; }
+.msg-head-detail { color: @muted; font-size: 11px; margin-top: 1px; }
+.msg-transcript { padding: 0 20px 10px; }
+.msg-day { color: @muted; font-size: 11px; font-weight: 600; margin: 18px 0 2px; }
+.msg-meta { margin: 12px 0 3px; }
+.msg-meta.out, .msg-message.out { margin-left: 36px; }
+.msg-who { color: alpha(@fg, 0.85); font-size: 11px; font-weight: 600; }
+.msg-meta.out .msg-who { color: @muted; }
+.msg-stamp { color: @muted; font-size: 11px; }
+.msg-stamp.failed { color: @critical; font-weight: 500; }
+.msg-message { margin: 2px 0; }
+.msg-text { color: @fg; font-size: 13px; }
+.msg-message.out .msg-text { color: alpha(@fg, 0.74); }
+.msg-message.pending .msg-text { color: alpha(@fg, 0.45); }
+.msg-retry { padding: 0 9px; border-radius: 999px; color: @fg; background-color: alpha(@critical, 0.18); transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.msg-retry label { font-size: 11px; font-weight: 600; }
+.msg-retry:hover { background-color: alpha(@critical, 0.30); }
+.msg-earlier { margin: 8px 0 0; padding: 4px 12px; border-radius: 999px; color: @muted; background-color: alpha(@fg, 0.06); }
+.msg-earlier label { font-size: 11px; font-weight: 500; }
+.msg-earlier:hover { color: @fg; background-color: alpha(@fg, 0.12); }
+.msg-readonly { color: @muted; font-size: 12px; padding: 10px 12px; border-radius: 12px; background-color: alpha(@fg, 0.05); }

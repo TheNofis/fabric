@@ -23,9 +23,10 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 from services.monitors import Monitor
 from services import mock
 from services.system import ClockState
+from services.tether import code_in
 from shared.constants import CONTENT_GAP, DND_FILE, POPUP_TOP, RUNTIME
 from shared.ui import meter
-from shared.widgets import css, flag, slide, text
+from shared.widgets import copy_text, css, flag, slide, text
 from shared.window import OverlayWindow, PopupWindow
 
 
@@ -236,6 +237,7 @@ class NotificationCard(EventBox):
 class NotificationHub:
     def __init__(self, monitor: Monitor, clock: ClockState, locked: Callable[[], bool]):
         self.locked = locked
+        self.reply: Callable[[NotificationRecord], bool] | None = None  # set by Messages: tether's Reply opens it
         self.records: list[NotificationRecord] = []
         self.history_widgets: dict[int, NotificationCard] = {}
         self.popup_widgets: dict[int, NotificationCard] = {}
@@ -379,6 +381,10 @@ class NotificationHub:
             self.remove_record(notification.replaces_id)
         actions = [(action.identifier, action.label) for action in notification.actions]
         body, image = body_image(notification.body)
+        buttons = [(action, label) for action, label in actions if action != "default"]
+        code = code_in(f"{notification.summary} {body}") if any(action in ("reply", "copy-code") for action, _ in buttons) else None
+        if code:  # a text with a one-time code from the iPhone: the code is the only thing to act on
+            buttons = [("copy-code", f"Copy {code}"), *((action, label) for action, label in buttons if action not in ("reply", "copy-code"))]
         record = NotificationRecord(
             notification.id,
             notification.app_name,
@@ -391,7 +397,7 @@ class NotificationHub:
             notification.urgency == 2 or notification.timeout == 0,
             image,
             avatar(notification),
-            [(action, label) for action, label in actions if action != "default"],
+            buttons,
             bool(notification.do_get_hint_entry("action-icons")),
         )
         self.add_history(record)
@@ -494,6 +500,15 @@ class NotificationHub:
         return False
 
     def activate(self, record: NotificationRecord, action: str) -> None:
+        code = code_in(f"{record.title} {record.body}") if action == "copy-code" else None
+        if code:  # tether's own copy needs a Wayland clipboard; this is X11
+            copy_text(code)
+            self.close(record)
+            return
+        if action == "reply" and self.reply and record.app.lower() in ("tether", "iphone") and self.reply(record):
+            self.center_window.hide()
+            self.close(record)  # answered in the Messages panel instead of tether's own window
+            return
         if action:
             self.service.invoke_notification_action(record.id, action)
             self.center_window.hide()  # drop the grab so the opened window takes input

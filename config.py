@@ -24,6 +24,7 @@ from modules import calendar as calendar_module
 from modules import claude as claude_module
 from modules import launcher as launcher_module
 from modules import lock as lock_module
+from modules import messages as messages_module
 from modules import music as music_module
 from modules import network as network_module
 from modules import notifications as notifications_module
@@ -75,6 +76,7 @@ class Shell:
                 ModuleSpec("notifications", notifications_module.build),
                 ModuleSpec("launcher", launcher_module.build),
                 ModuleSpec("dayline", dayline_module.build),
+                ModuleSpec("messages", messages_module.build),  # after notifications: hooks its Reply
                 ModuleSpec("voice", voice_module.build),
                 ModuleSpec("lock", lock_module.build),
                 ModuleSpec("auth", auth_module.build),
@@ -92,6 +94,7 @@ class Shell:
         self.notifications: NotificationHub | None = None
         self.launcher: LauncherWindow | None = None
         self.dayline: dayline_module.DaylineWindow | None = None
+        self.messages: messages_module.MessagesWindow | None = None
         self.voice: voice_module.VoiceWindow | None = None
         self.lock: lock_module.Lock | None = None
         self.windows = self.registry.build(self)
@@ -122,6 +125,12 @@ def toggle_launcher() -> None:
 def toggle_dayline() -> None:
     if shell:
         shell.dayline.toggle()
+
+
+@Application.action("toggle-messages")
+def toggle_messages() -> None:
+    if shell:
+        shell.messages.toggle()
 
 
 @Application.action("toggle-voice")
