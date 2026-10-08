@@ -29,50 +29,87 @@ launch.sh
       │   ├─ constants.py               пути и layout-метрики (gaps, bar height)
       │   ├─ widgets.py                 text/stat/island, hover_reveal/slide, run, audio helpers
       │   └─ window.py                  MonitorWindow, PopupWindow
-      └─ modules/                       UI-модули: view + build(context)
-          ├─ registry.py                порядок сборки окон
-          ├─ calendar.py                календарь на каждом мониторе
+      └─ modules/                       UI-модули: папка на модуль (см. «Контракт модуля»)
+          ├─ base.py                    Module: абстрактный класс всех модулей
+          ├─ calendar/                  календарь на каждом мониторе
+          ├─ sysmon/                    панель системного монитора
+          ├─ sound/                     панель звука: выход/вход, громкость, устройство (logic: pactl → devices)
+          ├─ network/                   панель сети: Wi-Fi и Ethernet (logic: разбор nmcli)
+          ├─ claude/                    лимиты Claude: слот в баре + панель; данные — scripts/claude.py
+          ├─ display/                   яркость, контраст, гамма, теплота, пресеты
+          ├─ bar/                       status bar + workspaces + tray; панели берёт из shell.modules
+          ├─ music/                     music popup (logic: время трека, локальная обложка)
+          ├─ volume_osd/                OSD: громкость и раскладка
+          ├─ notifications/             popup + notification center
+          │   ├─ record.py              NotificationRecord, чтение с шины, история на диске
+          │   ├─ card.py                карточка (popup и история)
+          │   └─ hub.py                 NotificationHub: стек попапов, центр, таймауты, DND
+          ├─ launcher/                  лаунчер (замена rofi); источники — services/launcher.py
           ├─ dayline/                   Super+C: календарь с заметками и напоминаниями
           │   ├─ times.py               разбор времени, шаг, повторы, «Today»: чистый Python
           │   ├─ store.py               Note, Notes (→ ~/.local/share/dayline/notes.json)
           │   ├─ icloud.py              Sync с iCloud Reminders (pyicloud); вход: python -m modules.dayline.icloud login
           │   └─ window.py              панель
-          ├─ sysmon.py                  панель системного монитора
-          ├─ claude.py                  лимиты Claude: шкала сессии в баре + панель (5ч/неделя, сброс); данные — scripts/claude.py
-          ├─ sound.py                   панель звука: выход/вход, громкость, устройство
-          ├─ network.py                 панель сети: Wi-Fi (сети, пароль, вкл/выкл) и Ethernet
-          ├─ bar.py                     status bar + workspaces
-          ├─ music.py                   music popup
-          ├─ volume_osd.py              OSD: громкость и раскладка
-          ├─ notifications/             popup + notification center
-          │   ├─ record.py              NotificationRecord, чтение с шины, история на диске
-          │   ├─ card.py                карточка (popup и история)
-          │   └─ hub.py                 NotificationHub: стек попапов, центр, таймауты, DND
           ├─ messages/                  Super+T: тексты iPhone
           │   ├─ format.py              номера, дни, поиск: чистый Python
           │   └─ window.py              панель
-          ├─ launcher.py                лаунчер (замена rofi)
-          ├─ lock.py                    экран блокировки
-          └─ auth.py                    окно пароля для polkit, gnome-keyring и ssh askpass
+          ├─ voice/                     оверлей голосового ввода
+          ├─ lock/                      экран блокировки
+          └─ auth/                      окно пароля для polkit, gnome-keyring и ssh askpass
 
 scripts/                                 i3 / PipeWire / MPRIS → JSON-строки
-style.css, design.toml, styles/tokens.css визуальная система
+style.css                                порядок @import = каскад: styles/{tokens,ui,base}.css, modules/*/style.css, styles/buttons.css
+design.toml, styles/tokens.css           токены визуальной системы
 sites.toml                               сайты для лаунчера
 ```
 
 Зависимости идут только вниз: `config.py → modules → shared → services`.
 
-**Модуль-папка.** Модуль остаётся одним файлом, пока он небольшой. Когда в нём
-больше ~400 строк и смешаны данные, логика и вид, он становится папкой:
-`__init__.py` (только `build`, импорты внутри него, чтобы `python -m
-modules.x.файл` не грузил файл дважды), чистая логика без GTK со своим
-self-check, данные/хранилище, `window.py`. Сервис, который нужен одному
-модулю, переезжает в его папку; общий (часы, мониторы, tether) остаётся в
-`services/`. Модули-папки сейчас: `dayline`, `notifications`, `messages`.
-Модуль не импортирует другой UI-модуль (исключение — `bar` получает
-`CalendarWindow` для клика по часам). Второе исключение: `services/launcher.py`
-берёт из `shared` пути и `run`/`copy_text`, потому что строки лаунчера сами
-запускают процессы и пишут в буфер.
+### Контракт модуля
+
+Каждый модуль — папка `modules/<name>/` и класс-наследник `Module` (`modules/base.py`):
+
+```text
+modules/<name>/
+  __init__.py   class <Name>(Module): name, action, build(), при необходимости activate()/check()
+  window.py     вид: окна и виджеты на базах из shared/window.py
+  logic.py      чистые функции без GTK + check() (если они есть; у больших модулей — по смыслу:
+                dayline/times.py, notifications/record.py, messages/format.py)
+  style.css     селекторы модуля; подключается строкой @import в style.css
+```
+
+```python
+class Dayline(Module):
+    name = "dayline"
+    action = "toggle-dayline"          # D-Bus экшен (toggle-*.sh) → activate(), по умолчанию toggle окна
+
+    def build(self) -> list[DaylineWindow]:
+        self.notes = Notes()
+        self.window = DaylineWindow(self.shell.monitors[0], self.shell.clock, self.notes)
+        return [self.window]
+
+    @staticmethod
+    def check() -> None:               # без дисплея; config.py --check запускает check() всех модулей
+        times.check()
+```
+
+- `config.py::MODULES` — единственный список модулей; порядок = порядок сборки (bar после
+  панелей, которые он открывает; messages после notifications). `Shell` строит каждый в
+  `shell.modules[name]`, кладёт результат `build()` в `module.windows`, регистрирует `action`.
+- Общие потоки (`clock`, `system`, `audio`, `network`, `keyboard`, `backlight`, …) — поля `Shell`.
+  Другой модуль — только через `self.shell.modules[...]` (`modules["claude"].slot(i)`,
+  `modules["notifications"].hub`); модули не импортируют друг друга. Модуль, который строится
+  позже, читается лениво (лямбдой).
+- Сервис, нужный одному модулю, живёт в его папке (`dayline/store.py`); общий — в `services/`.
+- Файл, перерастающий ~400 строк, делится по смыслу внутри папки модуля.
+- Self-check: `def check()` в файле, модуль вызывает его из `Module.check()`. Весь набор —
+  `.venv/bin/python config.py --check`.
+
+**Новый модуль:** папка с `__init__.py` + `window.py` (+ `style.css`), класс `Module`,
+строка в `MODULES`, строка `@import` в `style.css`; для хоткея — `toggle-<name>.sh` и бинд i3.
+
+Исключение из «зависимости вниз»: `services/launcher.py` берёт из `shared` пути и
+`run`/`copy_text`, потому что строки лаунчера сами запускают процессы и пишут в буфер.
 
 `launch.sh` запускает Fabric через `config.py`. Legacy Eww-файлы удалены; в
 runtime остаётся только Fabric implementation.
@@ -84,7 +121,7 @@ Notification manager перенесён на Fabric на уровне UI и life
 - `modules/notifications/hub.py::NotificationHub` создаёт popup stack и notification center, ведёт DND;
 - `modules/notifications/card.py::NotificationCard` отвечает за карточку, actions и close;
 - `modules/notifications/record.py` читает уведомление с шины и хранит историю;
-- `build()` в `modules/notifications/__init__.py` подключает модуль через registry;
+- класс `Notifications(Module)` в `modules/notifications/__init__.py` собирает hub и отдаёт его окна;
 - `fabric.notifications.Notifications` принимает D-Bus notifications;
 - окна создаются как Fabric `X11Window` и входят в `Application("fabric-shell", ...)`.
 
@@ -97,16 +134,17 @@ Notification manager перенесён на Fabric на уровне UI и life
 | --- | --- | --- |
 | `launch.sh` | Python runtime и запуск | строить UI или хранить state |
 | `Shell` | общий контекст, state streams и окна | содержать логику каждого модуля |
-| `modules/*.py` | сборку конкретных окон | читать окружение напрямую |
-| `ModuleRegistry` | порядок и выбор модулей | динамически загружать неизвестный код |
+| `modules/<name>/` | одну фичу: окна, её логику и стили | читать окружение напрямую, импортировать другой модуль |
+| `MODULES` в `config.py` | состав и порядок модулей | динамически загружать неизвестный код |
 | `scripts/` | адаптацию ОС к JSON/командам | знать GTK/Fabric widgets |
-| `style.css` | внешний вид и состояния | выполнять shell-команды |
+| `style.css` | порядок стилей (каскад) | содержать правила модулей |
 | `design.toml` | цвета, размеры, spacing, typography, motion и layers | описывать поведение модулей |
 
 ### Базовые классы (точки расширения)
 
 | База | Даёт | Наследник реализует |
 | --- | --- | --- |
+| `Module` | место в `shell.modules`, D-Bus экшен, `windows`, self-check | `name`, `build()`; по желанию `action`, `activate()`, `check()` |
 | `State` | `value`, `subscribe()`, `emit()` (только при изменении) | когда вызывать `emit()` |
 | `PollingState(State)` | GLib-таймер, `tick()` | `interval` (мс) и `read()` |
 | `JsonState(State)` | скрипт → JSON-строки, respawn, `stop_all()` | путь к скрипту и default |
@@ -138,8 +176,8 @@ UI-хелперы: `hover_reveal()` + `slide()` (раскрытие по нав�
    подписывается и обновляет виджеты.
 2. **Один источник истины.** i3, PipeWire, D-Bus и MPRIS вызываются в
    `scripts/` или `services/`, а не дублируются в UI-классах.
-3. **Модули независимы.** Модуль получает контекст и возвращает окна; он не
-   импортирует другой UI-модуль и не меняет registry.
+3. **Модули независимы.** Модуль получает shell и возвращает окна; другой модуль он
+   видит только через `shell.modules`, а не импортом.
 4. **События вместо polling, где возможно.** Polling оставляем для часов и
    метрик без событийного API.
 5. **Дизайн — контракт.** Accent (blue) — выделение и фокус, red — проблему/
@@ -159,11 +197,9 @@ app/
   actions.py                    toggle/open actions
   bootstrap.py                  registry и запуск
 modules/
-  registry.py                   ModuleSpec и ModuleRegistry
-  bar.py, calendar.py           текущие UI-модули
-  music.py, volume_osd.py
-  notifications.py
-  overview.py                   будущий overview/quick settings
+  base.py                       Module
+  <name>/                       модуль-папка: __init__ (Module), window, logic, style.css
+  overview/                     будущий overview/quick settings
 services/
   state.py                      JsonState, ClockState, SystemState
   monitors.py                   Monitor и xrandr discovery
@@ -178,20 +214,19 @@ shared/
 styles/
   tokens.css                    palette, radius, spacing, typography
   ui.css                        UI-кит: классы .ui-*
-  modules/                      module-specific selectors
+  base.css, buttons.css         рамка шелла и общие кнопки (стили модулей — в их папках)
 tests/
-  test_registry.py, test_state.py, test_scripts.py
+  test_state.py, test_scripts.py
 ```
 
 ### `app`
 
-`app` знает, какие модули включены, но не знает их внутреннюю разметку. Он
-создаёт `ShellContext` и передаёт его registry:
+`app` знает, какие модули включены, но не знает их внутреннюю разметку. Сейчас это
+`Shell` и `MODULES` в `config.py`:
 
 ```python
-context = ShellContext.create()
-windows = default_registry().build(context)
-Application("fabric-shell", *windows).run()
+shell = Shell()                       # потоки + for cls in MODULES: build()
+Application("fabric-shell", *shell.windows).run()
 ```
 
 ### `services`
@@ -210,7 +245,7 @@ UI не знает, вызывается ли внутри `wpctl`, `pactl`, D-B
 
 ### `modules`
 
-Модуль состоит из factory/build, view и module styles. Он не создаёт singleton,
+Модуль — класс `Module` + view + logic + module styles (см. «Контракт модуля»). Он не создаёт singleton,
 не запускает бесконечный shell-loop и не хранит системное состояние внутри GTK
 widget.
 
@@ -299,7 +334,7 @@ max_history = 50
 - добавить enabled modules;
 - вынести востребованные параметры в TOML;
 - валидировать конфиг при старте;
-- добавить новый модуль через один файл, registry entry и test.
+- ✅ новый модуль: папка, класс `Module`, строка в `MODULES` (см. «Контракт модуля»).
 
 ### Этап E — polish
 
@@ -310,7 +345,7 @@ max_history = 50
 
 ## 7. Тестирование и критерии готовности
 
-- registry строит только включённые модули и сохраняет порядок;
+- `--check` запускает `check()` каждого модуля и фиксирует имена D-Bus экшенов;
 - битый JSON не ломает stream и сохраняет последнее корректное значение;
 - parser мониторов обрабатывает отрицательные координаты и несколько дисплеев;
 - actions не блокируют GTK loop;

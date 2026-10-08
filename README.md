@@ -82,7 +82,7 @@ Dayline хранит заметки локально, поддерживает �
 
 Экран блокировки: `Super+Escape` / `Super+L`, пароль проверяется через PAM.
 
-Окно пароля (`modules/auth.py`) заменяет два системных диалога:
+Окно пароля (`modules/auth/`) заменяет два системных диалога:
 
 - **polkit** — когда `pkexec`, `systemctl`, GParted и другие операции просят права;
 - **gnome-keyring** — разблокировка и создание связки ключей при запуске приложений.
@@ -138,6 +138,7 @@ pkill picom; picom -b
 
 ## Устройство
 
-`config.py` собирает модули из `modules/` (окна), которые берут данные из `services/` и строятся на
-`shared/` (базовые окна, виджеты). Стили — `style.css` и токены `design.toml` / `styles/tokens.css`.
+`config.py` собирает модули из `modules/`: каждый — папка с классом `Module` (окна, логика, стили),
+данные берутся из `services/`, окна строятся на `shared/` (базовые окна, UI-кит). `style.css` — порядок
+подключения стилей, токены — `design.toml` / `styles/tokens.css`. Подробно — `ARCHITECTURE.md`.
 Подробно — в [ARCHITECTURE.md](ARCHITECTURE.md).
