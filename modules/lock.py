@@ -26,7 +26,9 @@ class LockWindow(MonitorWindow):
         if entry is not None:
             layout = text("", "lock-layout")
             center.add(password_field(entry, layout))
-            context.keyboard.subscribe(lambda v: layout.set_text(str(v.get("layout", "us")) + (" 󰪛" if v.get("caps") else "")))
+            self.status = text("", "lock-status")  # always present, so the layout doesn't jump when it fills
+            center.add(self.status)
+            context.keyboard.subscribe(lambda v: layout.set_text(str(v.get("layout", "us")).upper() + (" 󰪛" if v.get("caps") else "")))
         super().__init__(
             monitor,
             title="fabric-lock",
@@ -47,9 +49,12 @@ class Lock:
         self.entry = password_entry(self._check)
         self.windows = [LockWindow(m, context, self.entry if i == 0 else None) for i, m in enumerate(context.monitors)]
         main = self.windows[0]
+        self.status = main.status
+        self.entry.connect("changed", lambda *_: self._status(""))
         main.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
         main.connect("map-event", lambda *_: (main.take_focus(), self.entry.grab_focus(), self._grab()))
         main.connect("grab-broken-event", lambda *_: GLib.timeout_add(100, self._grab) and False)
+        self.context = context
         self.locked = False
 
     def lock(self) -> None:
@@ -58,6 +63,8 @@ class Lock:
         self.locked = True
         self.entry.set_text("")
         self.entry.set_sensitive(True)
+        if hub := getattr(self.context, "notifications", None):
+            hub.popup_window.hide()  # popups already up would sit under (or flash over) the lock
         for window in self.windows:
             window.show_all()
         # ponytail: i3 stacks newly mapped managed windows (notifications) above us; re-raise each second
@@ -91,6 +98,7 @@ class Lock:
             return
         self.entry.set_sensitive(False)
         flag(self.entry.get_parent(), "failed", False)
+        self._status("Checking…")
 
         def work() -> None:
             ok = authenticate(password)
@@ -106,10 +114,17 @@ class Lock:
             self.windows[0].get_display().get_default_seat().ungrab()
             for window in self.windows:
                 window.hide()
+            if (hub := getattr(self.context, "notifications", None)) and hub.popup_widgets:
+                hub.popup_window.show_all()
         else:
             flag(self.entry.get_parent(), "failed", True)
+            self._status("Wrong password", failed=True)
             self.entry.grab_focus()
         return False
+
+    def _status(self, value: str, failed: bool = False) -> None:
+        self.status.set_text(value)
+        flag(self.status, "failed", failed)
 
 
 def build(context: Any) -> list[Any]:
