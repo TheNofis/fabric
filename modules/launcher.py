@@ -40,7 +40,9 @@ class LauncherWindow(PopupWindow):
         self.web_icon = _web_icon()
         self.entry = Entry(h_expand=True, style_classes=("launcher-entry",))
         # GTK3 hides an Entry's own placeholder while it has focus, and ours always does
-        self.placeholder = text("Search Applications...", "launcher-placeholder", xalign=0)
+        self.placeholder = text("Search apps, sites, or calculate…", "launcher-placeholder", xalign=0)
+        # the prefixes the placeholder has no room for; shown only while the query is empty
+        self.hint = text("> command     c: clipboard     :emoji     ssh", "launcher-hint", xalign=0)
         self.entry.connect("changed", lambda *_: self.refresh())
         self.entry.connect("activate", lambda *_: self.launch(self.selected))
         self.list = Box(orientation="v", spacing=2, style_classes=("launcher-list",))
@@ -50,6 +52,7 @@ class LauncherWindow(PopupWindow):
             style_classes=("launcher",),
             children=[
                 Box(spacing=10, style_classes=("launcher-search",), children=[text("\U000F0349", "launcher-icon"), Overlay(child=self.entry, overlays=[self.placeholder], h_expand=True)]),
+                self.hint,
                 self.reveal,
             ],
         )
@@ -63,7 +66,7 @@ class LauncherWindow(PopupWindow):
             size=(520, -1),
             child=panel,
         )
-        self.clip_to(12, panel)
+        self.clip_to(20, panel)
         self.connect("key-press-event", self._on_nav)
         self.connect("show", lambda *_: self._open())
         self.connect("map-event", lambda *_: self.take_focus())
@@ -78,6 +81,7 @@ class LauncherWindow(PopupWindow):
     def refresh(self) -> None:
         query = self.entry.get_text()
         self.placeholder.set_visible(not query)
+        self.hint.set_visible(not query)
         self.items = self.sources.search(query, lambda app: app.get_icon_pixbuf(28, "application-x-executable"), self.web_icon)
         self.selected, self.armed, self.labels = 0, None, []
         for child in self.list.get_children():
@@ -95,11 +99,15 @@ class LauncherWindow(PopupWindow):
                 detail = text(item.detail, "launcher-detail", xalign=0)
                 detail.set_ellipsize(Pango.EllipsizeMode.END)
                 body = Box(orientation="v", h_expand=True, children=[name, detail])
-            self.list.add(Button(
+            row = Button(
                 style_classes=("launcher-row",),
                 child=Box(spacing=10, children=[icon, body]),
                 on_clicked=lambda *_, i=index: self.launch(i),
-            ))
+            )
+            # motion, not enter: a re-render under a resting pointer sends enter but no motion
+            row.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+            row.connect("motion-notify-event", lambda *_, i=index: self._hover(i))
+            self.list.add(row)
         self.list.show_all()
         self._highlight()
         self.reveal.set_reveal_child(bool(self.items))
@@ -107,6 +115,12 @@ class LauncherWindow(PopupWindow):
     def _highlight(self) -> None:
         for index, row in enumerate(self.list.get_children()):
             flag(row, "selected", index == self.selected)
+
+    def _hover(self, index: int) -> None:
+        if index != self.selected:
+            self._disarm()
+            self.selected = index
+            self._highlight()
 
     def _on_nav(self, _widget: Any, event: Gdk.EventKey) -> bool:
         step = {Gdk.KEY_Down: 1, Gdk.KEY_Tab: 1, Gdk.KEY_Up: -1, Gdk.KEY_ISO_Left_Tab: -1}.get(event.keyval)
@@ -130,7 +144,7 @@ class LauncherWindow(PopupWindow):
         if item.confirm and self.armed != index:
             self._disarm()
             self.armed = index
-            self.labels[index].set_text(f"{item.label}: press Enter again to confirm")
+            self.labels[index].set_text(f"{item.label}: press Enter or click again to confirm")
             flag(self.list.get_children()[index], "armed", True)
             return
         self.hide()
