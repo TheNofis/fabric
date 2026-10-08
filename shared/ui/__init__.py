@@ -15,8 +15,8 @@ Components:
     nav_button(glyph, on_clicked)        buttons.py  month arrow, not focusable
     switch(on_change, *classes)          controls.py on/off toggle (Gtk.Switch, already shown)
     slider(*classes, max_value=100)      controls.py volume-style Scale from 0; flag "dim" when muted
-    meter(*classes)                      controls.py usage bar (Gtk.ProgressBar), "thin" for secondary;
-                                                     flag "warn"/"alert" to tint it
+    meter(*classes, glide=True)          controls.py usage bar (Gtk.ProgressBar), "thin" for secondary;
+                                                     flag "warn"/"alert" to tint it; glides to new values
     password_entry(on_activate)          inputs.py   masked Entry, Enter calls on_activate
     password_field(entry, *extra)        inputs.py   rounded field: lock icon, entry, extra widgets
 

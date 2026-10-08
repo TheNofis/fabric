@@ -164,7 +164,7 @@ class NotificationCard(EventBox):
         activate: Callable[[NotificationRecord, str], None],
         close: Callable[[NotificationRecord], None],
     ):
-        self.progress = progress = meter("thin", "notification-progress")
+        self.progress = progress = meter("thin", "notification-progress", glide=False)
         progress.set_fraction(1)
         if center or record.persistent:  # never expires: nothing to count down
             progress.hide()
