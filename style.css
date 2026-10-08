@@ -361,6 +361,7 @@ tooltip {
 .notification-time { color: @muted; font-size: 11px; }
 .notification-title { font-weight: 600; }
 .notification-body { color: alpha(@fg, 0.80); font-size: 12px; }
+.notification-image { margin-top: 4px; }
 .notification-close, .notification-action { color: @muted; border-radius: 999px; min-width: 22px; min-height: 22px; }
 .notification-close { min-width: 28px; min-height: 28px; margin: -3px; }  /* hit target; the glyph stays put */
 .notification-progress progress { background-color: alpha(@fg, 0.55); }  /* ui-meter thin, dimmer: a countdown */

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -35,6 +36,7 @@ class NotificationRecord:
     time: float  # unix timestamp
     icon: GdkPixbuf.Pixbuf | None = None
     persistent: bool = False  # critical, or the sender asked for timeout 0: never expires
+    image: GdkPixbuf.Pixbuf | None = None
 
 
 def stamp(timestamp: float) -> str:
@@ -57,6 +59,23 @@ def app_icon(notification: Any) -> GdkPixbuf.Pixbuf | None:
     except GLib.Error:
         pass
     return None
+
+
+IMG = re.compile(r"""<img\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>""", re.I)
+
+
+def body_image(body: str) -> tuple[str, GdkPixbuf.Pixbuf | None]:
+    # body-images: <img src=.../> is not Pango markup, so cut the tags out and render the first local one
+    match = IMG.search(body)
+    body = IMG.sub("", body).strip()
+    if not match:
+        return body, None
+    src = match.group(1)
+    try:
+        path = GLib.filename_from_uri(src)[0] if src.startswith("file://") else src
+        return body, GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 340, 220, True)
+    except GLib.Error:  # remote URL or unreadable file: the spec lets us skip it
+        return body, None
 
 
 class NotificationCard(EventBox):
@@ -107,6 +126,7 @@ class NotificationCard(EventBox):
                     ],
                 ),
                 body,
+                *((css(Gtk.Image.new_from_pixbuf(record.image), "notification-image"),) if record.image else ()),
                 progress,
             ],
         )
@@ -203,16 +223,18 @@ class NotificationHub:
             service.remove_notification(notification.replaces_id)
             self.remove_record(notification.replaces_id)
         action = notification.actions[0].identifier if notification.actions else ""
+        body, image = body_image(notification.body)
         record = NotificationRecord(
             notification.id,
             notification.app_name,
             notification.summary,
-            notification.body,
+            body,
             notification.urgency,
             action,
             notification.time,
             app_icon(notification),
             notification.urgency == 2 or notification.timeout == 0,
+            image,
         )
         self.records.insert(0, record)
         for old in self.records[50:]:
