@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-import cairo
 from fabric.widgets.box import Box
 from fabric.widgets.eventbox import EventBox
 from gi.repository import Gtk
@@ -48,6 +47,12 @@ def reset_at(timestamp: int, now: datetime) -> str:
     return moment.strftime("today %H:%M" if moment.date() == now.date() else "%a %H:%M")
 
 
+def pace(pct: int, remaining: int, length: int) -> str:
+    """Usage against even spending over the window: '8% ahead of pace', 'on pace' (within 3), '12% under pace'."""
+    gap = round(pct - 100 + 100 * remaining / length)
+    return "on pace" if abs(gap) <= 3 else f"{gap}% ahead of pace" if gap > 0 else f"{-gap}% under pace"
+
+
 def level(limit: dict[str, Any] | None, pct: int) -> str:
     """'alert' at the cap or when the API calls it critical, 'warn' when it warns, else ''."""
     severity = (limit or {}).get("severity")
@@ -59,51 +64,40 @@ def paint(widget: Gtk.Widget, state: str) -> None:
     flag(widget, "alert", state == "alert")
 
 
-class Gauge(Gtk.DrawingArea):
-    """Usage bar with an optional even-pace tick: where usage would be if spent evenly over the
-    window, so a fill past the tick runs out before the reset. Fill colour is CSS `color`."""
+class PaceMeter(Gtk.Overlay):
+    """meter() with an even-pace tick: where usage would be if spent evenly over the window,
+    so a fill past the tick runs out before the reset."""
 
-    def __init__(self, width: int = -1, bar: int = 4, tick: bool = True):
+    def __init__(self):
         super().__init__()
-        self.fraction, self.pace, self.bar, self.tick = 0.0, 0.0, bar, tick
-        css(self, "claude-gauge")
-        self.set_size_request(width, bar + 8 if tick else bar)
-        self.set_valign(Gtk.Align.CENTER)
-        self.connect("draw", self.on_draw)
-        self.show()  # plain Gtk widget: not visible by default like Fabric's
+        self.pace = 0.0
+        self.bar = meter()
+        self.tick = css(Gtk.Box(), "claude-pace")
+        self.tick.set_no_show_all(True)  # set() owns its visibility
+        self.add(self.bar)
+        self.add_overlay(self.tick)
+        self.set_size_request(-1, 12)  # the tick overhangs the 4px bar
+        self.connect("get-child-position", self.place)
+        self.show_all()
 
-    def set(self, fraction: float, pace: float = 0.0) -> None:
-        self.fraction, self.pace = min(max(fraction, 0.0), 1.0), min(max(pace, 0.0), 1.0)
-        self.queue_draw()
+    def set(self, fraction: float, pace: float) -> None:
+        self.bar.set_fraction(min(max(fraction, 0.0), 1.0))
+        self.pace = min(max(pace, 0.0), 1.0)
+        self.tick.set_visible(bool(self.pace))
+        self.queue_resize()
 
-    def pill(self, cr: cairo.Context, width: float) -> None:
-        radius, y = self.bar / 2, (self.get_allocated_height() - self.bar) / 2
-        cr.new_sub_path()
-        cr.arc(radius, y + radius, radius, 1.5708, 4.7124)
-        cr.arc(width - radius, y + radius, radius, -1.5708, 1.5708)
-        cr.close_path()
-
-    def on_draw(self, _area: Gtk.DrawingArea, cr: cairo.Context) -> bool:
-        width, height = self.get_allocated_width(), self.get_allocated_height()
-        self.pill(cr, width)
-        cr.set_source_rgba(1, 1, 1, 0.18)  # .ui-meter trough
-        cr.fill()
-        if self.fraction:
-            color = self.get_style_context().get_color(self.get_state_flags())
-            self.pill(cr, max(width * self.fraction, self.bar))
-            cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
-            cr.fill()
-        if self.tick and self.pace:
-            x = round(min(max(width * self.pace, 1), width - 1)) - 1
-            cr.rectangle(x, 0, 2, height)
-            cr.set_source_rgba(1, 1, 1, 0.95)
-            cr.fill()
-        return False
+    def place(self, _overlay: Gtk.Overlay, _tick: Gtk.Widget, rect: Any) -> bool:
+        width = self.get_allocated_width()
+        rect.x, rect.y = round(min(max(width * self.pace, 1), width - 1)) - 1, 0
+        rect.width, rect.height = 2, self.get_allocated_height()
+        return True
 
 
 def claude_slot(usage: JsonState, clock: ClockState, claude_panel: ClaudeWindow) -> EventBox:
     """Bar slot: session gauge and percent; hover slides out the time to the reset."""
-    gauge = Gauge(28, tick=False)
+    gauge = meter()
+    gauge.set_hexpand(False)
+    gauge.set_size_request(28, -1)
     pct = text("", "value", "w-pct")
     left = text("", "muted")
     revealer = slide(left, "right")
@@ -123,7 +117,7 @@ def claude_slot(usage: JsonState, clock: ClockState, claude_panel: ClaudeWindow)
             return
         widget.show_all()
         percent, remaining = current(session, clock.value.timestamp())
-        gauge.set(percent / 100)
+        gauge.set_fraction(min(percent / 100, 1))
         pct.set_text(f"{percent}%")
         left.set_text(f"{duration(remaining)} left" if remaining else "reset")
         paint(slot_stat, level(session, percent))
@@ -140,7 +134,7 @@ class ClaudeWindow(BarPanel):
         self.windows: list[tuple[Any, ...]] = []
         sections = []
         for key, title, span, length in (("session", "Session", "5-hour window", SESSION), ("week", "Week", "7-day window", WEEK)):
-            big, resets, left, gauge = big_value(), text("", "sysmon-value"), text("", "sysmon-value"), Gauge()
+            big, resets, left, gauge = big_value(), text("", "sysmon-value"), text("", "sysmon-value"), PaceMeter()
             box = section(title, text(span, "ui-detail"), big, [left], gauge, Box(style_classes=("sysmon-row",), children=[
                 text("Resets", "sysmon-label"), Box(h_expand=True), resets,
             ]))
@@ -166,11 +160,11 @@ class ClaudeWindow(BarPanel):
             state = level(limit, pct)
             big.set_markup(amount(pct, "%"))
             paint(big, state)
-            paint(gauge, state)
+            paint(gauge.bar, state)
             gauge.set(pct / 100, 1 - remaining / length if remaining else 0)
             gauge.set_tooltip_text(f"Even pace: {round(100 - 100 * remaining / length)}%" if remaining else None)
-            resets.set_text(reset_at(limit["resets"], now) if remaining else "now")
-            left.set_text(f"{duration(remaining)} left" if remaining else "")
+            resets.set_text(f"{reset_at(limit['resets'], now)} · in {duration(remaining)}" if remaining else "now")
+            left.set_text(pace(pct, remaining, length) if remaining else "")
 
         sources = value.get("sources") or []
         rows = []

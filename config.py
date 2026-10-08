@@ -238,6 +238,7 @@ def self_check() -> None:
     assert [network_module.signal_icon(s) for s in (10, 40, 70, 95)] == ["󰤟", "󰤢", "󰤥", "󰤨"]
     assert claude_module.current({"pct": 40, "resets": 1000}, 400) == (40, 600) and claude_module.current({"pct": 40, "resets": 1000}, 1000) == (0, 0)
     assert [claude_module.duration(s) for s in (1, 2700, 8040, 108000)] == ["1m", "45m", "2h 14m", "1d 6h"]
+    assert [claude_module.pace(p, r, 100) for p, r in ((50, 50), (52, 50), (60, 50), (38, 50))] == ["on pace", "on pace", "10% ahead of pace", "12% under pace"]
     assert [claude_module.level({"severity": s}, p) for s, p in (("normal", 36), ("warning", 80), ("warning", 0), ("normal", 100), ("critical", 95))] == ["", "warn", "", "alert", "alert"]
     from services.display import DisplayState, ramp, whitepoint
     assert whitepoint(6500) == (1.0, 1.0, 1.0) and whitepoint(3400)[2] < whitepoint(3400)[1] < 1.0
