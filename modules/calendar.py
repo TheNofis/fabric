@@ -19,7 +19,8 @@ from shared.window import BarPanel
 
 
 class CalendarWindow(BarPanel):
-    def __init__(self, monitor: Monitor, clock: ClockState):
+    def __init__(self, monitor: Monitor, clock: ClockState, context: Any):
+        self.context = context  # dayline and notes are built after the calendars; read them lazily
         self.today = mock.NOW.date() if mock.ENABLED else date.today()
         self.month = month_start(self.today)
 
@@ -32,10 +33,13 @@ class CalendarWindow(BarPanel):
         grid = css(Gtk.Grid(column_homogeneous=True), "cal-grid")
         for column, day in enumerate(grid_days(self.month)[:7]):
             grid.attach(text(day.strftime("%a")[:2], "cal-head"), column, 0, 1, 1)
-        self.cells = [text("", "cal-cell") for _ in range(42)]
-        for cell in self.cells:
-            cell.set_halign(Gtk.Align.CENTER)
-        for index, cell in enumerate(self.cells):
+        self.cells: list[tuple[Button, Any]] = []
+        for index in range(42):
+            number = text("", "cal-num")
+            cell = Button(style_classes=("cal-cell",), h_align="center", child=Box(orientation="v", children=[number, text("•", "cal-dot")]),
+                          on_clicked=lambda *_, i=index: self.open_day(i))
+            cell.set_can_focus(False)
+            self.cells.append((cell, number))
             grid.attach(cell, index % 7, index // 7 + 1, 1, 1)
 
         super().__init__(
@@ -85,20 +89,28 @@ class CalendarWindow(BarPanel):
         self.full_date.set_text(self.today.strftime("%B %Y"))
         self.show_month(self.today if following else self.month)
 
+    def open_day(self, index: int) -> None:
+        dayline = getattr(self.context, "dayline", None)
+        if dayline:
+            self.hide()
+            dayline.show_day(grid_days(self.month)[index])
+
     def show_month(self, day: date) -> None:
         self.month = month_start(day)
         self.title.set_markup(f'{self.month:%B} <span fgalpha="64%">{self.month.year}</span>')
         flag(self.back, "away", self.month != month_start(self.today))
-        days = grid_days(self.month)
-        for cell, day in zip(self.cells, days):
-            cell.set_text(str(day.day))
+        notes = getattr(self.context, "notes", None)
+        busy = {n.day for n in notes.value if n.day and not n.done and not n.deleted} if notes else set()
+        for (cell, number), day in zip(self.cells, grid_days(self.month)):
+            number.set_text(str(day.day))
+            flag(cell, "busy", day.isoformat() in busy)
             flag(cell, "outside", day.month != self.month.month)
             flag(cell, "today", day == self.today)
 
 
 def build(context: Any) -> list[Any]:
     context.calendars = [
-        CalendarWindow(monitor, context.clock)
+        CalendarWindow(monitor, context.clock, context)
         for monitor in context.monitors
     ]
     return context.calendars
