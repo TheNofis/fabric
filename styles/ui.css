@@ -30,7 +30,7 @@
 
 /* nav_button() */
 .ui-nav { border-radius: 6px; padding: 3px 6px; color: @muted; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
-.ui-nav-arrow { min-width: 16px; }
+.ui-nav-arrow { min-width: 16px; min-height: 22px; margin: -4px 0; }  /* 28px target, header keeps its height */
 .ui-nav-arrow label { font-size: 11px; }
 .ui-nav-arrow:hover { background-color: alpha(@fg, 0.12); color: @fg; }
 .ui-nav:active { background-color: alpha(black, 0.25); }
@@ -48,4 +48,5 @@
 .ui-meter trough { min-width: 0; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
 .ui-meter progress { min-width: 0; min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
 .ui-meter.thin trough, .ui-meter.thin progress { min-height: 3px; }
+.ui-meter.warn progress { background-color: @warning; }
 .ui-meter.alert progress { background-color: @critical; }

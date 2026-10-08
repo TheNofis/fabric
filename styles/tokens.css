@@ -1,14 +1,14 @@
 /* Runtime GTK color projection of design.toml. */
 /* One base background, two glass levels: the bar and every other panel (popups, launcher, OSD, notifications). */
 @define-color bg #1C1C1E;
-@define-color bg_bar alpha(@bg, 0.30);
-@define-color bg_panel alpha(@bg, 0.42);
+@define-color bg_bar alpha(@bg, 0.55);  /* the glass cap: muted text still under 3:1 over a white wallpaper */
+@define-color bg_panel alpha(@bg, 0.55);  /* muted 4.5:1 over a mid-grey wallpaper */
 @define-color bg_critical alpha(#FF453A, 0.28);
 @define-color fg #F5F5F7;
 @define-color muted alpha(#F5F5F7, 0.64);
 @define-color icon alpha(#F5F5F7, 0.85);
 @define-color border alpha(white, 0.12);
-@define-color highlight alpha(white, 0.08);
+@define-color highlight alpha(white, 0.14);
 @define-color accent #0A84FF;
 @define-color accent_fill #0071E3;  /* fills under white text: 4.7:1 */
 @define-color critical #FF453A;

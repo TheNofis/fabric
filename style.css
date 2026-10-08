@@ -13,6 +13,8 @@
 }
 
 window { background-color: transparent; }
+/* Keyboard focus: GTK3 draws the outline only once Tab has moved focus (gtk-visible-focus), never after a click. */
+button { outline: 2px solid alpha(@accent, 0.6); outline-offset: 1px; -gtk-outline-radius: 8px; }
 tooltip {
   background-color: @bg_panel;
   border: 1px solid @border;
@@ -33,9 +35,9 @@ tooltip {
 }
 
 .icon { color: @icon; font-size: 14px; }
-/* Bar metrics stay monospaced so the islands do not jitter as numbers change. */
-.island .value, .time { font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 12px; }
-.value { color: @fg; }
+/* Inter's tabular figures (tnum on *) keep the islands from jittering as numbers change. */
+.island .value, .time { font-size: 12px; }
+.value { color: @fg; font-weight: 500; }
 .muted, .arrow { color: @muted; }
 .time { color: @fg; font-weight: 600; }
 .w-pct { min-width: 38px; }
@@ -66,7 +68,7 @@ tooltip {
 }
 .ws:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .ws.visible { color: @fg; }
-.ws.focused { color: white; background-color: @accent_fill; font-weight: 600; }
+.ws.focused { color: @fg; background-color: alpha(@fg, 0.18); box-shadow: inset 0 1px @highlight; font-weight: 600; }
 .ws.urgent { color: white; background-color: @critical_fill; }
 
 /* Sliders: white fill like Control Center; accent is reserved for selection and focus. */
@@ -95,9 +97,16 @@ tooltip {
 .cal-back { margin-left: -6px; }
 .cal-back.away:hover { background-color: alpha(@fg, 0.12); color: @fg; }
 .cal-head { color: @muted; font-size: 10px; font-weight: 600; min-height: 22px; }
-.cal-cell { color: @fg; font-size: 12px; min-width: 30px; min-height: 30px; margin: 1px 0; border-radius: 999px; }
+.cal-cell { color: @fg; min-width: 30px; min-height: 30px; padding: 0; margin: 1px 0; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out; }
+.cal-cell:hover { background-color: alpha(@fg, 0.08); }
 .cal-cell.outside { color: alpha(@fg, 0.28); }
-.cal-cell.today { color: white; background-color: @accent_fill; font-weight: 600; }
+.cal-cell.today { color: white; background-color: @accent_fill; }
+.cal-cell.today .cal-num { font-weight: 600; }
+.cal-num { font-size: 12px; margin-top: 4px; }
+/* open notes: Dayline's dot, so the two grids agree */
+.cal-dot { font-size: 7px; color: transparent; margin-top: -3px; }
+.cal-cell.busy .cal-dot { color: @muted; }
+.cal-cell.today.busy .cal-dot { color: white; }
 
 /* Dayline (Super+C): the calendar panel's voice at launcher scale. Accent stays today's disc
    and the caret; the picked day and the note being edited get a neutral fill. Days with notes
@@ -132,12 +141,13 @@ tooltip {
 .dayline-next .dayline-note { margin: 0 -8px; padding: 5px 8px; }
 .dayline-note:hover { background-color: alpha(@fg, 0.06); }
 .dayline-note.editing { background-color: alpha(@fg, 0.12); }
-.dayline-when { color: @muted; font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; }
+.dayline-when { color: @muted; font-size: 11px; font-weight: 500; }
 .dayline-when.time { min-width: 50px; }
+.dayline-next .dayline-when { font-size: 12px; }
 .dayline-text { color: @fg; font-size: 13px; }
 .dayline-next .dayline-text { font-size: 12px; }
 .dayline-note.past .dayline-text, .dayline-note.past .dayline-when { color: alpha(@fg, 0.40); }
-.dayline-delete { color: transparent; min-width: 22px; min-height: 22px; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.dayline-delete { color: transparent; min-width: 28px; min-height: 28px; margin: -3px; border-radius: 999px; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .dayline-note:hover .dayline-delete, .dayline-note.editing .dayline-delete { color: @muted; }
 .dayline-delete:hover { color: @critical; background-color: alpha(@critical, 0.14); }
 .dayline-delete label { font-size: 12px; }
@@ -145,14 +155,16 @@ tooltip {
 
 /* Reminders: the circle completes (accent once done: a state), done notes strike through and fade.
    Marks trail the note: priority in plain weight, the flag in Apple's orange, repeat muted. */
-.dayline-check { min-width: 20px; min-height: 20px; padding: 0; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.dayline-check { min-width: 28px; min-height: 28px; margin: -4px; padding: 0; border-radius: 999px; color: alpha(@fg, 0.40); background-color: transparent; transition: color 150ms ease-out, background-color 150ms ease-out; }
 .dayline-check label { font-size: 15px; }
 .dayline-check:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .dayline-note.done .dayline-check { color: @accent; }
 .dayline-note.done .dayline-text { text-decoration-line: line-through; color: alpha(@fg, 0.40); }
 .dayline-note.done .dayline-when, .dayline-note.done .dayline-desc { color: alpha(@fg, 0.32); }
 .dayline-desc { color: @muted; font-size: 11px; margin-top: 1px; }
-.dayline-mark-priority { color: @fg; font-size: 12px; font-weight: 700; }
+.dayline-mark-priority { color: @muted; font-size: 12px; font-weight: 800; letter-spacing: -0.12em; }
+.dayline-mark-priority.p5 { color: @fg; }
+.dayline-mark-priority.p1 { color: @critical; }
 .dayline-mark-flag { color: @warning; font-size: 12px; }
 .dayline-mark-repeat { color: @muted; font-size: 12px; }
 /* missed: red is the state, so it outranks the past dimming */
@@ -169,6 +181,8 @@ tooltip {
 .dayline-undated label { font-size: 11px; font-weight: 600; }
 .dayline-undated:hover { color: @fg; background-color: alpha(@fg, 0.06); }
 .dayline-undated.selected { color: @fg; background-color: alpha(@fg, 0.14); }
+.dayline-undated .dayline-undated-add { color: transparent; font-weight: 500; transition: color 150ms ease-out; }
+.dayline-undated:hover .dayline-undated-add { color: @muted; }
 
 /* List tabs: the day cell's language in a row; the list's own color is only its dot. */
 .dayline-tabs { margin: -4px -6px 0; }
@@ -184,7 +198,7 @@ tooltip {
 .dayline-entry { color: @fg; caret-color: @accent; font-size: 13px; }
 .dayline-entry selection, .dayline-time-entry selection { background-color: alpha(@accent, 0.45); }
 .dayline-placeholder { color: alpha(@fg, 0.40); font-size: 13px; }
-.dayline-time-entry { color: @fg; caret-color: @accent; font-family: "JetBrainsMono Nerd Font"; font-size: 12px; padding-left: 10px; border-left: 1px solid alpha(white, 0.10); }
+.dayline-time-entry { color: @fg; caret-color: @accent; font-size: 12px; padding-left: 10px; border-left: 1px solid alpha(white, 0.10); }
 .dayline-caption { color: @muted; font-size: 11px; padding: 0 2px; }
 .dayline-time-entry:disabled { color: alpha(@fg, 0.28); }
 .dayline-desc-entry { color: @muted; caret-color: @accent; font-size: 12px; margin-top: 6px; padding-top: 6px; border-top: 1px solid alpha(white, 0.08); }
@@ -194,24 +208,25 @@ tooltip {
 .dayline-prio label { font-size: 12px; font-weight: 700; }
 .dayline-prio:hover, .dayline-chip:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .dayline-prio.set { color: @fg; }
-.dayline-chip { color: @muted; background-color: alpha(@fg, 0.06); }
+.dayline-prio, .dayline-chip { color: @muted; background-color: alpha(@fg, 0.06); }
 .dayline-chip-title { font-size: 11px; font-weight: 500; }
 .dayline-chip.moved { color: @fg; background-color: alpha(@accent, 0.22); }
-/* Time picker: 24 hours in two rows, quarter hours below; the picked slot is an accent fill,
+/* Time picker: 24 hours in two rows, quarter hours below; the picked slot is a neutral fill,
    hours already gone today fade but stay clickable. */
 .dayline-picker { padding: 8px; border-radius: 12px; background-color: alpha(white, 0.06); margin-bottom: 2px; }
 .dayline-slot { min-height: 26px; padding: 0 6px; border-radius: 7px; color: @fg; background-color: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
-.dayline-slot label { font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; }
+.dayline-slot label { font-size: 11px; }
 .dayline-slot:hover { background-color: alpha(@fg, 0.10); }
 .dayline-slot.minute { margin-top: 6px; }  /* the minutes row sits apart from the hours */
 .dayline-slot:active { background-color: alpha(black, 0.25); }
 .dayline-slot.past { color: alpha(@fg, 0.35); }
-.dayline-slot.selected { background-color: @accent_fill; color: white; }
+.dayline-slot.selected { background-color: alpha(@fg, 0.20); color: @fg; }
+.dayline-slot.selected label { font-weight: 600; }
 
 /* System monitor: sections split by space, not rules; big light numerals like the notification center.
    Meters are white like every progress in the shell; red only when a value is in trouble. */
 .sysmon-meta { margin-bottom: 5px; }
-.sysmon-value { color: @fg; font-size: 12px; }
+.sysmon-value { color: @fg; font-size: 12px; font-weight: 500; }
 .sysmon-label { color: @muted; font-size: 11px; }
 .sysmon-value.alert { color: @critical; font-weight: 600; }
 .sysmon-row { margin-top: 4px; }
@@ -234,15 +249,15 @@ tooltip {
 /* Display panel: sound's sliders. Brightness is an amount (white fill); contrast, gamma and warmth
    are positions around neutral, so they show only the knob. The warmth track is the one colored
    element, because there the color is the value. Preset rows are sound's device rows. */
-.display-label { color: @muted; font-size: 11px; }
-.display-value { color: @fg; font-size: 11px; font-weight: 500; }
+.display-label { color: @muted; font-size: 12px; }
+.display-value { color: @fg; font-size: 12px; font-weight: 500; }
 .display-edited { margin-top: 10px; }
 .display-link { color: @muted; padding: 1px 8px; margin-right: -8px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .display-link:hover { color: @fg; background-color: alpha(@fg, 0.10); }
 .display-warmth trough { background-image: linear-gradient(to right, alpha(#FF9F0A, 0.75), alpha(white, 0.18)); }
-.display-delete { color: transparent; min-width: 22px; border-radius: 6px; transition: color 150ms ease-out, background-color 150ms ease-out; }
+.display-delete { color: transparent; min-width: 28px; margin: 0 -3px; border-radius: 6px; transition: color 150ms ease-out, background-color 150ms ease-out; }
 .ui-row:hover .display-delete { color: @muted; }
-.ui-row .display-delete:hover { color: @critical; background-color: alpha(@critical, 0.14); }
+.ui-row .display-delete:hover, .ui-row .display-delete.armed { color: @critical; background-color: alpha(@critical, 0.14); }
 .ui-panel .display-form { min-width: 0; margin: 8px -8px 0; padding: 4px 4px 4px 14px; }
 .display-name, .display-save label, .display-link label { font-size: 12px; }
 .display-delete label { font-size: 13px; }
@@ -262,6 +277,10 @@ tooltip {
 .net-password .ui-field-entry { font-size: 13px; }
 .net-action { margin-top: 0; padding: 4px 14px; font-size: 12px; }
 .net-options { margin: 2px 0 6px; }
+.net-action.armed { color: white; background-color: @critical_fill; }
+.net-more { color: @muted; min-width: 22px; min-height: 22px; border-radius: 999px; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.net-more:hover { color: @fg; background-color: alpha(@fg, 0.10); }
+.net-more label { font-size: 13px; }
 .net-form { margin: 0 -8px; }
 .net-switch { min-width: 36px; min-height: 20px; border-radius: 999px; background-color: alpha(white, 0.18); transition: background-color 180ms cubic-bezier(0.32, 0.72, 0, 1); }
 .net-switch:checked { background-color: @accent_fill; }
@@ -277,27 +296,31 @@ tooltip {
   color: @fg;
 }
 .music-popup-head { min-width: 384px; }
-.music-disc { min-width: 48px; min-height: 48px; border-radius: 10px; background-color: alpha(@fg, 0.08); }
-.music-disc-icon { color: @muted; font-size: 22px; }
-.music-cover { min-width: 48px; min-height: 48px; border-radius: 10px; }
+.music-disc { min-width: 64px; min-height: 64px; border-radius: 12px; background-color: alpha(@fg, 0.08); box-shadow: inset 0 1px @highlight; }
+.music-disc-icon { color: @muted; font-size: 28px; }
+.music-cover { min-width: 64px; min-height: 64px; border-radius: 12px; }
 .music-popup-kicker { color: @muted; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
 .music-source { min-height: 0; padding: 0 6px; border-radius: 999px; color: @muted; background-color: alpha(@fg, 0.08); }
 .music-source label { font-size: 10px; font-weight: 600; }
 .music-source:hover { color: @fg; }
-.music-popup-title { color: @fg; font-size: 15px; font-weight: 600; }
+.music-popup-title { color: @fg; font-size: 16px; font-weight: 600; }
 .music-popup-artist { color: @muted; font-size: 12px; }
 .music-close, .music-button { min-width: 24px; min-height: 24px; border-radius: 999px; color: @fg; }
 .music-close { color: @muted; }
 
-/* Transport is bare glyphs, play is simply larger (Now Playing style). */
+/* Transport is bare glyphs, play is a filled disc (Control Center style). */
 .music-controls { padding: 2px 0; }
 .music-controls .music-button { min-width: 40px; min-height: 40px; }
-.music-control-icon { font-size: 20px; }
-.music-main.music-control-icon { font-size: 26px; }
+.music-control-icon label { font-size: 22px; }
+.music-controls .music-main { min-width: 48px; min-height: 48px; color: @bg; background-color: @fg; }
+.music-controls .music-main:hover { color: @bg; background-color: white; }
+.music-main.music-control-icon label { font-size: 24px; }
+.music-close label { font-size: 16px; }
 .music-track { margin-top: 2px; }
-.music-progress trough { min-width: 384px; min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
-.music-progress progress { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.85); }
-.music-track-times, .music-time { color: @muted; font-size: 11px; }
+/* a thin meter, not a seek bar: it isn't draggable */
+.music-progress trough { min-width: 384px; }
+.music-progress progress { background-color: alpha(@fg, 0.70); }
+.music-track-times, .music-time { color: @muted; font-size: 11px; font-weight: 500; }
 .music-time { min-width: 36px; }
 
 .volume-osd {
@@ -311,14 +334,11 @@ tooltip {
 .volume-osd-icon { min-width: 28px; min-height: 28px; padding: 0; border-radius: 999px; background-color: transparent; }
 .volume-osd-glyph { color: @fg; font-size: 18px; }
 .volume-osd-percent { min-width: 34px; color: @fg; font-size: 12px; font-weight: 600; }
-.volume-osd-slider trough { min-width: 118px; min-height: 6px; border-radius: 3px; background-color: alpha(white, 0.18); }
-.volume-osd-slider highlight { background-color: @fg; border-radius: 3px; }
-.volume-osd-slider slider { min-width: 14px; min-height: 14px; margin: -4px 0; border-radius: 7px; background-color: white; box-shadow: 0 1px 3px alpha(black, 0.4); }
+.volume-osd-meter.dim progress { background-color: alpha(@fg, 0.30); }
 .layout-osd-item { min-height: 28px; border-radius: 8px; color: @muted; font-size: 12px; font-weight: 600; background-color: alpha(white, 0.08); }
 .layout-osd-caps { color: alpha(white, 0.22); font-size: 16px; }
 .layout-osd-caps.active { color: @info; }
-.layout-osd-item.active { color: white; background-color: @accent_fill; }
-.volume-osd-icon:hover { background-color: alpha(@fg, 0.10); }
+.layout-osd-item.active { color: @fg; background-color: alpha(@fg, 0.18); }
 .voice-osd-icon { color: @muted; font-size: 18px; }
 .voice-osd-icon.speaking { color: @critical; }
 .voice-osd-text { color: @fg; font-size: 13px; }
@@ -335,14 +355,15 @@ tooltip {
 }
 .notification { min-width: 352px; }
 .notification.critical { background-color: @bg_critical; }
-.notification-icon { color: @icon; font-size: 18px; }
+.notification-icon { color: @icon; font-size: 18px; min-width: 20px; }
+.notification-empty { color: @muted; font-size: 13px; }
 .notification-app { color: @muted; font-size: 11px; font-weight: 500; }
 .notification-time { color: @muted; font-size: 11px; }
 .notification-title { font-weight: 600; }
 .notification-body { color: alpha(@fg, 0.80); font-size: 12px; }
 .notification-close, .notification-action { color: @muted; border-radius: 999px; min-width: 22px; min-height: 22px; }
-.notification-progress trough { min-height: 4px; border-radius: 2px; background-color: alpha(white, 0.18); }
-.notification-progress progress { min-height: 4px; border-radius: 2px; background-color: @accent; }
+.notification-close { min-width: 28px; min-height: 28px; margin: -3px; }  /* hit target; the glyph stays put */
+.notification-progress progress { background-color: alpha(@fg, 0.55); }  /* ui-meter thin, dimmer: a countdown */
 .notification-center { border-radius: 24px; padding: 20px 12px 12px; }
 .notification-center-head { padding: 0 8px 8px; }
 .notification-center-head .notification-action { min-width: 36px; min-height: 36px; color: @fg; }
@@ -370,22 +391,20 @@ tooltip {
 .tray-item { padding: 0 5px; }
 
 /* Tray menus (dbusmenu): a solid panel, picom rounds the window (non-RGBA, so no glass);
-   the hovered row is an accent fill, like the launcher's selected row. */
+   the hovered row is a neutral fill, like the launcher's selected row. */
 menu { background-color: #232325; border: 1px solid @border; border-radius: 10px; padding: 5px; color: @fg; }
 menuitem { min-height: 22px; padding: 0 10px; border-radius: 6px; }
-menuitem:hover { background-color: @accent_fill; color: white; }
+menuitem:hover { background-color: alpha(@fg, 0.12); color: @fg; }
 menuitem:disabled { color: alpha(@fg, 0.35); }
 menu separator { min-height: 1px; margin: 5px 10px; background-color: alpha(white, 0.10); }
 menuitem check, menuitem radio { min-width: 14px; min-height: 14px; margin-right: 6px; }
 menuitem check:checked, menuitem radio:checked { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); }
 menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icontheme("pan-end-symbolic"); }
-/* Center header buttons are bare icons: white, dimmed while DND is on (.active). */
-.notification-center-head .notification-action,
-.notification-center-head .notification-action:hover,
-.notification-center-head .notification-action:active { background-color: transparent; color: @fg; }
-.notification-center-head .notification-action.active { color: alpha(@fg, 0.35); }
+/* Center header buttons are bare icons with the shared hover fill; DND on (.active) sits in a faint pill. */
+.notification-center-head .notification-action.active { background-color: alpha(@fg, 0.12); }
+.notification-center-head .notification-action.active:hover { background-color: alpha(@fg, 0.18); }
 
-/* Launcher: Spotlight-like large search field, selection is a solid accent row. */
+/* Launcher: Spotlight-like large search field, selection is a neutral glass row. */
 .launcher {
   border: 1px solid @border;
   box-shadow: inset 0 1px @highlight;
@@ -399,16 +418,16 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .launcher-entry { color: @fg; caret-color: @accent; font-size: 20px; font-weight: 300; }
 .launcher-placeholder { color: alpha(@fg, 0.35); font-size: 20px; font-weight: 300; }
 .launcher-entry selection { background-color: alpha(@accent, 0.45); }
+.launcher-hint { color: @muted; font-size: 11px; padding: 0 12px 8px 42px; }
 .launcher-list { padding: 6px 0 0; border-top: 1px solid alpha(white, 0.08); }
 .launcher-row { padding: 7px 10px; border-radius: 14px; transition: background-color 120ms ease-out; }
-.launcher-row:hover { background-color: alpha(@fg, 0.06); }
-.launcher-row.selected { background-color: @accent_fill; }
-.launcher-row.selected, .launcher-row.selected * { color: white; }
+.launcher-row.selected { background-color: alpha(@fg, 0.14); box-shadow: inset 0 1px @highlight; }
+.launcher-row.selected, .launcher-row.selected * { color: @fg; }
 .launcher-row.selected .launcher-name { font-weight: 600; }
 .launcher-glyph { min-width: 28px; color: @icon; font-size: 20px; }
 /* SSH hosts: the target reads like the command it runs, a quiet mono line under the name. */
 .launcher-detail { color: @muted; font-family: "JetBrainsMono Nerd Font"; font-feature-settings: "tnum 0"; font-size: 11px; margin-top: 1px; }
-.launcher-row.selected .launcher-detail { color: alpha(white, 0.78); }
+.launcher-row.selected .launcher-detail { color: @muted; }
 .launcher-row.armed { background-color: @critical_fill; }
 .launcher-row.armed, .launcher-row.armed * { color: white; }
 .launcher-row.armed .launcher-name { font-weight: 600; }
@@ -417,6 +436,8 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .lock-time { font-size: 104px; font-weight: 600; letter-spacing: -0.03em; }
 .lock-date { color: alpha(@fg, 0.75); font-size: 20px; font-weight: 500; margin-bottom: 32px; }
 .lock-layout { color: @muted; font-size: 12px; }
+.lock-status { color: @muted; font-size: 13px; margin-top: 4px; }
+.lock-status.failed { color: @critical; }
 
 /* Polkit / keyring dialog: glass panel, reuses the lock screen's password pill. */
 .auth { border: 1px solid @border; box-shadow: inset 0 1px @highlight; background-color: @bg_panel; border-radius: 20px; padding: 22px 20px 16px; color: @fg; }
@@ -425,13 +446,17 @@ menuitem arrow { min-width: 14px; margin-left: 10px; -gtk-icon-source: -gtk-icon
 .auth-message { color: alpha(@fg, 0.80); font-size: 12px; margin-bottom: 6px; }
 .auth-label { color: @muted; font-size: 11px; font-weight: 500; }
 .auth .ui-field { min-width: 0; }
-.auth-hint { color: @critical; font-size: 12px; }
+.auth-hint { color: @muted; font-size: 12px; }
+.auth-hint.failed { color: @critical; }
 .auth-check { color: alpha(@fg, 0.80); font-size: 12px; }
 .auth-check check { min-width: 14px; min-height: 14px; margin-right: 6px; border-radius: 4px; border: 1px solid @border; background-color: alpha(white, 0.10); }
 .auth-check check:checked { background-color: @accent_fill; border-color: @accent_fill; }
 
-/* Claude limits: sysmon's layout. The gauge is white like every meter; orange once the API
-   warns, red at the cap. The white tick on the panel gauges is even pace for the window. */
-.claude-gauge { color: alpha(@fg, 0.85); }
-.claude-gauge.warn, .ui-big.warn, .warn .icon, .warn .value { color: @warning; }
-.claude-gauge.alert, .ui-big.alert { color: @critical; }
+/* Claude limits: sysmon's layout. Gauges are ui-meters (orange once the API warns, red at the cap);
+   the white tick on the panel gauges is even pace for the window. */
+.claude-pace { background-color: alpha(white, 0.95); }
+.ui-big.warn, .warn .icon, .warn .value { color: @warning; }
+.ui-big.alert { color: @critical; }
+
+/* Per-core load columns (sysmon.Cores) share the graph's colour. */
+.sysmon-cores { color: alpha(@fg, 0.70); }

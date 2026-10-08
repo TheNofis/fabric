@@ -7,7 +7,7 @@ foreground = "#F5F5F7"
 muted = "alpha(#F5F5F7, 0.64)"
 icon = "alpha(#F5F5F7, 0.85)"
 border = "alpha(white, 0.12)"
-highlight = "alpha(white, 0.08)"  # inset top edge of glass
+highlight = "alpha(white, 0.14)"  # inset top edge of glass
 accent = "#0A84FF"
 accent_fill = "#0071E3"  # fills under white text
 critical = "#FF453A"
@@ -17,8 +17,8 @@ menu = "#232325"  # tray menus: opaque, a non-RGBA window cannot be glass
 transparent = "transparent"
 
 [opacity]
-bar = 0.30    # bg_bar = alpha(bg, bar)
-panel = 0.42  # bg_panel = alpha(bg, panel): popups, launcher, OSD, notifications, tooltips
+bar = 0.55    # bg_bar = alpha(bg, bar); 0.55 is the glass cap: muted 2.4:1 / fg 3.5:1 over a white wallpaper (3:1 needs 0.65)
+panel = 0.55  # muted 4.5:1 over a mid-grey wallpaper; bg_panel = alpha(bg, panel): popups, launcher, OSD, notifications, tooltips
 hover = 0.10
 active = 0.12
 track = 0.30
@@ -27,7 +27,7 @@ shadow = 0.42
 
 [font]
 family = "Inter"
-family_mono = "JetBrainsMono Nerd Font"  # bar metrics, so digits do not jump
+family_mono = "JetBrainsMono Nerd Font"  # SSH targets only; Inter tnum keeps bar digits steady
 family_icon = "Symbols Nerd Font"
 size = "13px"
 weight = 400
@@ -73,7 +73,7 @@ button_large = "38px"
 status_icon = "42px"
 notification_width = "352px"
 music_width = "384px"
-osd_width = "344px"
+osd_width = "230px"
 volume_slider = "88px"
 percent_width = "38px"
 speed_width = "44px"
