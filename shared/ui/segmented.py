@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fabric.widgets.box import Box
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from shared.ui.controls import Tween
 from shared.widgets import flag, text
@@ -29,16 +29,25 @@ class Glider:
         self.index: int | None = None
         self.origin: Rect | None = None
         self.progress = 1.0
+        self.moved = 0  # µs, the last to(): its gap paces a chase
         self.tween = Tween(container, lambda: self.progress, self.step)
         container.connect("draw", self.paint)  # before the default handler: under the children
 
     def to(self, index: int | None, animate: bool = True) -> None:
         """index None hides the thumb; animate=False lands it at once (rebuilt lists, first show)."""
         current = self.rect()
+        now, gliding = GLib.get_monotonic_time(), self.progress < 1
+        gap, self.moved = now - self.moved, now
         self.index = index
         if animate and current is not None and index is not None:
             self.origin, self.progress = current, 0.0
-            self.tween.to(1.0)
+            if gliding:
+                # retarget mid-glide (held arrow, fast hover): a linear leg as long as the gap since the
+                # last move, so legs chain at a steady speed and the thumb stays under a row behind;
+                # restarting the 220ms ease every key repeat would leave it rows back
+                self.tween.to(1.0, min(max(gap, 16_000), Tween.DURATION), linear=True)
+            else:
+                self.tween.to(1.0)
         else:
             self.origin = None
             self.tween.jump(1.0)

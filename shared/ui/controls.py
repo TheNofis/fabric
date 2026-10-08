@@ -34,9 +34,15 @@ class Tween:
         self.widget, self.get, self.set = widget, get, set
         self.tick = self.start = 0
         self.origin = self.target = 0.0
+        self.duration, self.linear = self.DURATION, False
 
-    def to(self, target: float) -> None:
-        self.origin, self.target, self.start = self.get(), target, 0
+    def to(self, target: float, duration: int = DURATION, linear: bool = False) -> None:
+        """duration in µs; linear for chained segments, where easing each one would pulse."""
+        self.origin, self.target, self.duration, self.linear = self.get(), target, duration, linear
+        # start on the clock's "now", not the next tick: a restart every key repeat (~33ms) would
+        # otherwise spend its first frame at t=0 and the thumb stutters stop-move-stop
+        clock = self.widget.get_frame_clock()
+        self.start = clock.get_frame_time() if clock else 0
         if not self.tick:
             self.tick = self.widget.add_tick_callback(self.step)
 
@@ -49,8 +55,8 @@ class Tween:
     def step(self, _widget: Gtk.Widget, clock: Any) -> bool:
         now = clock.get_frame_time()
         self.start = self.start or now
-        t = min((now - self.start) / self.DURATION, 1.0)
-        eased = 1 - (1 - t) ** 3  # quick to move, soft to land
+        t = min((now - self.start) / self.duration, 1.0)
+        eased = t if self.linear else 1 - (1 - t) ** 3  # quick to move, soft to land
         self.set(self.origin + (self.target - self.origin) * eased)
         if t < 1:
             return True

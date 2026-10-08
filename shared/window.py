@@ -51,26 +51,31 @@ class MonitorWindow(X11Window):
         they change at runtime (e.g. notification cards); watch widgets trigger a reshape.
         """
 
-        def reshape(*_: Any) -> None:
+        shaped: list[tuple[int, int, int, int]] = []
+
+        def reshape(*_: Any, force: bool = False) -> None:
             window = self.get_window()
             if window is None:
                 return
-            region = cairo.Region()
-            laid_out = False
+            rects = []
             for panel in parts() if parts else watch:
                 if not panel.get_visible():
                     continue
                 x, y = panel.translate_coordinates(self, 0, 0)
                 width, height = panel.get_allocated_width(), panel.get_allocated_height()
-                if width < 2 * radius or height < 2 * radius:
-                    continue  # not laid out yet
-                laid_out = True
+                if width >= 2 * radius and height >= 2 * radius:  # else not laid out yet
+                    rects.append((x, y, width, height))
+            # size-allocate fires on every relayout (a row's font-weight on each arrow key); an
+            # unchanged shape still makes picom redo the blur, which stutters held-key navigation
+            if not rects or (rects == shaped and not force):
+                return  # an empty shape would make the mapped window invisible; the next allocation reshapes
+            shaped[:] = rects
+            region = cairo.Region()
+            for x, y, width, height in rects:
                 for row in range(height):
                     edge = min(row, height - 1 - row)
                     inset = round(radius - math.sqrt(radius**2 - (radius - edge - 0.5) ** 2)) if edge < radius else 0
                     region.union(cairo.RectangleInt(x + inset, y + row, width - 2 * inset, 1))
-            if not laid_out:
-                return  # an empty shape would make the mapped window invisible; the next allocation reshapes
             window.shape_combine_region(region, 0, 0)
             window.get_display().flush()
             # picom drops damage that races a shape change and keeps stale pixels; repaint once it caught up
@@ -80,7 +85,7 @@ class MonitorWindow(X11Window):
         for widget in watch:
             widget.connect("size-allocate", reshape)
         # i3 reparents on map, so the new frame needs the shape too; idle so the first map sees the allocation
-        self.connect("map-event", lambda *_: GLib.idle_add(lambda: reshape() or False))
+        self.connect("map-event", lambda *_: GLib.idle_add(lambda: reshape(force=True) or False))
 
     def take_focus(self) -> None:
         """Give the window X input focus: override-redirect popups never get it from i3,
