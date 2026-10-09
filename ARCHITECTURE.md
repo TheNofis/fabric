@@ -37,7 +37,7 @@ launch.sh
           ├─ network/                   панель сети: Wi-Fi и Ethernet (logic: разбор nmcli)
           ├─ claude/                    лимиты Claude: слот в баре + панель; данные — scripts/claude.py
           ├─ display/                   яркость, контраст, гамма, теплота, пресеты
-          ├─ bar/                       status bar + workspaces + tray; панели берёт из shell.modules
+          ├─ bar/                       status bar + tray; workspaces.py — i3 IPC в процессе; панели из shell.modules
           ├─ music/                     music popup (logic: время трека, локальная обложка)
           ├─ volume_osd/                OSD: громкость и раскладка
           ├─ notifications/             popup + notification center
@@ -57,7 +57,7 @@ launch.sh
           ├─ lock/                      экран блокировки
           └─ auth/                      окно пароля для polkit, gnome-keyring и ssh askpass
 
-scripts/                                 i3 / PipeWire / MPRIS → JSON-строки
+scripts/                                 PipeWire / MPRIS → JSON-строки
 style.css                                порядок @import = каскад: styles/{tokens,ui,base}.css, modules/*/style.css, styles/buttons.css
 design.toml, styles/tokens.css           токены визуальной системы
 sites.toml                               сайты для лаунчера

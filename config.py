@@ -57,7 +57,6 @@ class Shell:
             raise RuntimeError("No active X11 monitors found")
         self.clock = ClockState()
         self.system = SystemState()
-        self.workspaces = JsonState(SCRIPTS / "workspaces.sh", [])
         self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False})
         self.network = NetworkState()
         self.backlight = BacklightState()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from modules.base import Module
 from modules.bar.window import Bar as BarWindow
+from modules.bar.workspaces import Workspaces
 
 
 class Bar(Module):
@@ -11,12 +12,13 @@ class Bar(Module):
 
     def build(self) -> list[BarWindow]:
         shell, panels = self.shell, self.shell.modules
+        workspaces = Workspaces()
         return [
             BarWindow(
                 monitor,
                 shell.clock,
                 shell.system,
-                shell.workspaces,
+                workspaces,
                 shell.audio,
                 shell.network,
                 shell.keyboard,

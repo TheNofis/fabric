@@ -68,7 +68,7 @@ class JsonState(State):
     """Line-delimited JSON from a long-running script.
 
     The script runs in its own process group (setsid) so the whole pipeline,
-    including `pactl subscribe`/`i3-msg subscribe`, is killed on stop. FABRIC_SCRIPT=1 marks the
+    including `pactl subscribe`, is killed on stop. FABRIC_SCRIPT=1 marks the
     whole tree so launch.sh can kill what a crashed instance left behind. stderr
     is discarded: an unread stderr pipe fills up and freezes the script. The
     script is respawned when it exits (i3 restart, pipewire restart, ...).

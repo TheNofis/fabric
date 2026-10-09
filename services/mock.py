@@ -18,7 +18,7 @@ def json_for(script: str) -> object:
     name = script.rsplit("/", 1)[-1]
     if name == "audio.sh":
         return {"vol": 68, "muted": False}
-    if name == "workspaces.sh":
+    if name == "workspaces":
         return [
             {"name": name, "focused": name == "4", "visible": name in {"1", "4"}, "urgent": False, "output": "eDP-1"}
             for name in ("1", "2", "3", "4", "5", "6", "7")

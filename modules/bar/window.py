@@ -15,7 +15,7 @@ from gi.repository import Gdk, GLib, Gtk
 
 from services import mock
 from services.monitors import Monitor
-from services.state import JsonState
+from services.state import JsonState, State
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
 from shared.constants import BAR_HEIGHT, GIB, HOT
 from shared.ui import Glider, Slider, slider
@@ -24,7 +24,7 @@ from shared.window import BarPanel, MonitorWindow
 
 
 class WorkspacesView(EventBox):
-    def __init__(self, monitor: str, state: JsonState):
+    def __init__(self, monitor: str, state: State):
         self.monitor = monitor
         self.shown: list[dict[str, Any]] | None = None
         # buttons sit in a bare box inside the island: the focused thumb is painted under them
@@ -166,7 +166,7 @@ class Bar(MonitorWindow):
         monitor: Monitor,
         clock: ClockState,
         system: SystemState,
-        workspaces: JsonState,
+        workspaces: State,
         audio: JsonState,
         network: NetworkState,
         keyboard: KeyboardState,
