@@ -43,15 +43,18 @@ class State:
 
 
 class PollingState(State):
-    """State refreshed by a GLib timer: subclasses set `interval` (ms) and implement read()."""
+    """State refreshed by a GLib timer: subclasses set `interval` (seconds) and implement read().
 
-    interval = 1000
+    timeout_add_seconds: GLib fires all second-granular timers together, one wakeup for every poller.
+    """
+
+    interval = 1
 
     def __init__(self, default: Any = None):
         super().__init__(default)
         self.tick()
         if not mock.ENABLED:
-            GLib.timeout_add(self.interval, self.tick)
+            GLib.timeout_add_seconds(self.interval, self.tick)
 
     def read(self) -> Any:
         raise NotImplementedError

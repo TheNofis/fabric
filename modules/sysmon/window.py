@@ -185,11 +185,17 @@ class SystemMonitorWindow(BarPanel):
             panel(cpu, memory, self.gpu_section, disk),
         )
         self.system = system
-        # nvidia-smi only runs while the panel is open; the CPU history is kept by build()
-        self.connect("show", lambda *_: (gpu.start(), self.update(system.value)))
-        self.connect("hide", lambda *_: gpu.stop())
+        # nvidia-smi and the panel-only system keys are read while the panel is open; the CPU history is kept by build()
+        self.connect("show", lambda *_: (gpu.start(), self.view(1)))
+        self.connect("hide", lambda *_: (gpu.stop(), self.view(-1)))
         system.subscribe(self.update)
         gpu.subscribe(self.update_gpu)
+
+    def view(self, step: int) -> None:
+        self.system.viewers += step
+        if step > 0:
+            self.system.tick()  # the panel-only keys now, not a second later
+            self.update(self.system.value)
 
     def update(self, value: dict[str, Any]) -> None:
         if not self.get_visible():

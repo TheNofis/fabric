@@ -46,6 +46,7 @@ class SystemState(PollingState):
     keys, the system monitor panel all of them."""
 
     def __init__(self):
+        self.viewers = 0  # open sysmon panels: frequencies, load and disk are read only for them
         self.previous_cpu: list[tuple[int, int]] | None = None
         self.sensors = self.find_sensors()
         self.disk_sensor = next(self.hwmon_inputs("nvme"), None)
@@ -112,10 +113,8 @@ class SystemState(PollingState):
         self.previous_cpu = times
         loads = [busy(now, old) for now, old in zip(times, before)]
         memory = self.memory()
-        frequencies = [value for value in map(self.read_number, self.frequencies) if value is not None]
-        disk = os.statvfs("/")
-        disk_temp = self.read_number(self.disk_sensor) if self.disk_sensor else None
-        return {
+        value = {
+            **self.value,
             "cpu": loads[0],
             "cores": loads[1:],
             "used": memory["MemTotal"] - memory.get("MemAvailable", memory["MemFree"]),
@@ -123,12 +122,19 @@ class SystemState(PollingState):
             "swap_used": memory.get("SwapTotal", 0) - memory.get("SwapFree", 0),
             "swap_total": memory.get("SwapTotal", 0),
             "temp": self.temperature(),
-            "freq": sum(frequencies) / len(frequencies) / 1e6 if frequencies else 0.0,  # kHz -> GHz
-            "load": float(Path("/proc/loadavg").read_text().split()[0]),
-            "disk_used": (disk.f_blocks - disk.f_bfree) * disk.f_frsize,
-            "disk_total": disk.f_blocks * disk.f_frsize,
-            "disk_temp": (disk_temp or 0) / 1000,
         }
+        if self.viewers:
+            frequencies = [value for value in map(self.read_number, self.frequencies) if value is not None]
+            disk = os.statvfs("/")
+            disk_temp = self.read_number(self.disk_sensor) if self.disk_sensor else None
+            value.update(
+                freq=sum(frequencies) / len(frequencies) / 1e6 if frequencies else 0.0,  # kHz -> GHz
+                load=float(Path("/proc/loadavg").read_text().split()[0]),
+                disk_used=(disk.f_blocks - disk.f_bfree) * disk.f_frsize,
+                disk_total=disk.f_blocks * disk.f_frsize,
+                disk_temp=(disk_temp or 0) / 1000,
+            )
+        return value
 
 
 def human_bytes(value: float) -> str:
