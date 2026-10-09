@@ -35,7 +35,7 @@ launch.sh
           ├─ sysmon/                    панель системного монитора
           ├─ sound/                     панель звука: выход/вход, громкость, устройство (logic: pactl → devices)
           ├─ network/                   панель сети: Wi-Fi и Ethernet (logic: разбор nmcli)
-          ├─ claude/                    лимиты Claude: слот в баре + панель; данные — scripts/claude.py
+          ├─ claude/                    лимиты Claude: слот в баре + панель; данные — usage.py (поток в процессе)
           ├─ display/                   яркость, контраст, гамма, теплота, пресеты
           ├─ bar/                       status bar + tray; workspaces.py — i3 IPC в процессе; панели из shell.modules
           ├─ music/                     music popup; player.py — MPRIS по D-Bus сигналам (logic: время, обложка)

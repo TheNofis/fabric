@@ -1,5 +1,6 @@
-"""Claude plan limits: the bar's session gauge (slot) and its dropdown. Data: scripts/claude.py.
+"""Claude plan limits: the bar's session gauge (slot) and its dropdown.
 
+    usage.py   the /usage poller (a thread in this process)
     logic.py   percent, time to reset, pace, warning level
     window.py  the slot and the panel
 """
@@ -10,16 +11,15 @@ from gi.repository import Gtk
 
 from modules.base import Module
 from modules.claude import logic
+from modules.claude.usage import Usage
 from modules.claude.window import ClaudeWindow, claude_slot
-from services.state import JsonState
-from shared.constants import SCRIPTS
 
 
 class Claude(Module):
     name = "claude"
 
     def build(self) -> list[ClaudeWindow]:
-        self.usage = JsonState(SCRIPTS / "claude.py", {})
+        self.usage = Usage()
         return [ClaudeWindow(monitor, self.usage, self.shell.clock) for monitor in self.shell.monitors]
 
     def slot(self, index: int) -> Gtk.Widget:

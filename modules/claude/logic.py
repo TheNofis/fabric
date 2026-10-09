@@ -1,4 +1,4 @@
-"""Claude limits without GTK: what the numbers from scripts/claude.py mean."""
+"""Claude limits without GTK: what the numbers from usage.py mean."""
 
 from __future__ import annotations
 

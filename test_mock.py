@@ -11,6 +11,7 @@ from modules.network.window import nmcli
 from services.launcher import Sources
 from services.state import JsonState
 from modules.bar.workspaces import Workspaces
+from modules.claude.usage import Usage
 from modules.music.player import Player
 from services.system import BacklightState, ClockState, KeyboardState, NetworkState, SystemState
 from shared.widgets import copy_text, run
@@ -19,13 +20,14 @@ assert mock.ENABLED, "Run with FABRIC_MOCK=1"
 with patch("gi.repository.GLib.spawn_async", side_effect=AssertionError("system command")), patch(
     "gi.repository.Gio.Subprocess.new", side_effect=AssertionError("script or nmcli")
 ), patch("gi.repository.Gtk.Clipboard.get", side_effect=AssertionError("real clipboard")):
-    for script in ("audio.sh", "gpu.sh", "sound.sh", "network.sh", "claude.py", "voice.py"):
+    for script in ("audio.sh", "gpu.sh", "sound.sh", "network.sh", "voice.py"):
         stream = JsonState(Path(script), {})
         assert stream.value and stream.process is None
         stream.stop()
         stream.start()
         assert stream.value == mock.json_for(script)
     assert Workspaces().value == mock.json_for("workspaces")
+    assert Usage().value == mock.json_for("claude")
     player = Player()
     player.start()
     player.play_pause()

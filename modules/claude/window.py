@@ -11,7 +11,7 @@ from gi.repository import Gtk
 
 from modules.claude.logic import current, duration, level, pace, reset_at
 from services.monitors import Monitor
-from services.state import JsonState
+from services.state import State
 from services.system import ClockState
 from shared.ui import amount, big_value, detail_row, header, meter, panel, section, stat_value
 from shared.widgets import css, flag, hover_reveal, slide, stat, text
@@ -57,7 +57,7 @@ class PaceMeter(Gtk.Overlay):
         return True
 
 
-def claude_slot(usage: JsonState, clock: ClockState, claude_panel: ClaudeWindow) -> EventBox:
+def claude_slot(usage: State, clock: ClockState, claude_panel: ClaudeWindow) -> EventBox:
     """Bar slot: session gauge and percent; hover slides out the time to the reset."""
     gauge = meter()
     gauge.set_hexpand(False)
@@ -93,7 +93,7 @@ def claude_slot(usage: JsonState, clock: ClockState, claude_panel: ClaudeWindow)
 
 
 class ClaudeWindow(BarPanel):
-    def __init__(self, monitor: Monitor, usage: JsonState, clock: ClockState):
+    def __init__(self, monitor: Monitor, usage: State, clock: ClockState):
         self.usage, self.clock = usage, clock
         self.windows: list[tuple[Any, ...]] = []
         sections = []

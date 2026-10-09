@@ -1,17 +1,25 @@
-#!/usr/bin/env python3
-"""Claude plan limits as JSON lines every 60s, from the endpoint behind Claude Code's /usage.
+"""Claude plan limits every 60s, from the endpoint behind Claude Code's /usage. Polled in a thread
+in-process; the numbers come back to the main loop.
 
 Reads the OAuth token Claude Code keeps in ~/.claude/.credentials.json on every poll and never
 refreshes it (that would rotate the refresh token under Claude Code). On failure the last good
 numbers are repeated with an "error": login (token missing/expired) or offline.
 """
 
+from __future__ import annotations
+
 import json
+import threading
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+
+from gi.repository import GLib
+
+from services import mock
+from services.state import State
 
 CREDENTIALS = Path.home() / ".claude" / ".credentials.json"
 URL = "https://api.anthropic.com/api/oauth/usage"
@@ -62,13 +70,19 @@ def poll() -> dict:
     return {**parse(data), "plan": oauth.get("subscriptionType", ""), "at": int(time.time()), "error": ""}
 
 
-def main() -> None:
-    last: dict = {}
-    while True:
-        last = {**last, **poll()}
-        print(json.dumps(last), flush=True)
-        time.sleep(INTERVAL)
+class Usage(State):
+    """value: {"session", "week", "sources", "plan", "at", "error"}; {} until the first poll."""
 
+    def __init__(self):
+        super().__init__({})
+        if mock.ENABLED:
+            self.emit(mock.json_for("claude"))
+            return
+        threading.Thread(target=self.loop, daemon=True).start()
 
-if __name__ == "__main__":
-    main()
+    def loop(self) -> None:
+        last: dict = {}
+        while True:
+            last = {**last, **poll()}
+            GLib.idle_add(self.emit, last)
+            time.sleep(INTERVAL)

@@ -38,7 +38,7 @@ def json_for(script: str) -> object:
         }
     if name == "network.sh":
         return {"radio": "enabled", "wifi": "*:87:WPA2:Studio\n :64:WPA2:Home\n :42:WPA2:Guest", "known": "studio:Studio\nhome:Home", "devices": "wlan0:wifi:connected:Studio\nenp3s0:ethernet:unavailable:\n"}
-    if name == "claude.py":
+    if name == "claude":
         return {"plan": "pro", "at": int(NOW.timestamp()), "error": "", "session": {"pct": 63, "resets": int((NOW + timedelta(hours=2, minutes=18)).timestamp()), "severity": "normal"}, "week": {"pct": 38, "resets": int((NOW + timedelta(days=4, hours=5)).timestamp()), "severity": "normal"}, "sources": [["Coding", 54], ["Review", 28], ["Planning", 18]]}
     if name == "voice.py":
         return {"state": "speaking", "partial": "Демонстрационный голосовой ввод", "last": "Демонстрационный голосовой ввод", "device": "mock"}
