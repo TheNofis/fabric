@@ -120,7 +120,7 @@ def connect() -> Any:
 
 
 class Sync:
-    """Two-way sync of Notes with iCloud Reminders: every minute, right after a local edit, and on demand.
+    """Two-way sync of Notes with iCloud Reminders: every 5 minutes, when the panel opens and right after a local edit.
 
     Network work runs in a thread; results come back to the main loop, the only place Notes changes.
     """
@@ -131,7 +131,7 @@ class Sync:
         self.busy = self.again = False
         self.blocked: float | None = None  # account file mtime at a failed login: no retry until it changes
         notes.on_change = self.soon
-        GLib.timeout_add_seconds(60, lambda: self.run() or True)
+        GLib.timeout_add_seconds(300, lambda: self.run() or True)
         self.run()
 
     def soon(self) -> None:
@@ -175,7 +175,7 @@ class Sync:
 
 
 def login() -> None:
-    """Interactive: Apple ID, password (kept in the keyring), the 2FA code. Sync picks it up within a minute."""
+    """Interactive: Apple ID, password (kept in the keyring), the 2FA code. Sync picks it up within 5 minutes or when the panel opens."""
     from getpass import getpass
 
     from pyicloud import PyiCloudService
