@@ -16,6 +16,8 @@ if pkill -u "$(id -u)" -f "$pattern"; then
   while pgrep -u "$(id -u)" -f "$pattern" >/dev/null && [ $i -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
   pkill -KILL -u "$(id -u)" -f "$pattern" 2>/dev/null || true
 fi
+# a killed or crashed instance never ran stop_all(): its script trees (pactl subscribe, ...) are still up
+grep -lsxz 'FABRIC_SCRIPT=1' /proc/[0-9]*/environ | cut -d/ -f3 | xargs -r kill 2>/dev/null || true
 
 # bridges Bluetooth sources (iPhone over AVRCP) onto MPRIS for the music popup
 pgrep -u "$(id -u)" -x mpris-proxy >/dev/null || setsid -f mpris-proxy >/dev/null 2>&1
