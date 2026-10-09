@@ -26,7 +26,7 @@ track_subtle = 0.25
 shadow = 0.42
 
 [font]
-family = "Inter"
+family = "Inter Variable"  # one 0.9 MB file; "Inter" resolves to the 13 MB Inter.ttc collection
 family_mono = "JetBrainsMono Nerd Font"  # SSH targets only; Inter tnum keeps bar digits steady
 family_icon = "Symbols Nerd Font"
 size = "13px"

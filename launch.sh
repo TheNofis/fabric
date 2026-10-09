@@ -23,4 +23,6 @@ grep -lsxz 'FABRIC_SCRIPT=1' /proc/[0-9]*/environ | cut -d/ -f3 | xargs -r kill 
 pgrep -u "$(id -u)" -x mpris-proxy >/dev/null || setsid -f mpris-proxy >/dev/null 2>&1
 
 export GDK_BACKEND=x11
+# glibc gives every thread its own malloc arena; a few idle threads don't need them
+export MALLOC_ARENA_MAX=2
 exec "$python" "$root/config.py"
