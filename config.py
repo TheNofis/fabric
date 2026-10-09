@@ -60,7 +60,6 @@ class Shell:
         self.audio = JsonState(SCRIPTS / "audio.sh", {"vol": 0, "muted": False})
         self.network = NetworkState()
         self.backlight = BacklightState()
-        self.music = JsonState(SCRIPTS / "music.sh", {"status": "Stopped", "title": "No media player", "artist": "", "position": 0, "length": 1, "elapsed": "0:00", "duration": "0:00"}, autostart=False)
         self.voice_state = JsonState(SCRIPTS / "voice.py", {"state": "loading"}, autostart=False)
         self.keyboard = KeyboardState()
         self.modules: dict[str, Module] = {}

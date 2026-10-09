@@ -1,4 +1,4 @@
-"""Music popup driven by scripts/music.sh (MPRIS)."""
+"""Music popup over MPRIS (modules/music/player.py)."""
 
 from __future__ import annotations
 
@@ -12,19 +12,19 @@ from fabric.widgets.image import Image
 from gi.repository import GdkPixbuf, GLib
 
 from modules.music.logic import clock, local_art_path
+from modules.music.player import Player
 from services.monitors import Monitor
-from services.state import JsonState
-from shared.constants import POPUP_TOP, SCRIPTS
+from shared.constants import POPUP_TOP
 from shared.ui import meter
-from shared.widgets import line, run, text
+from shared.widgets import line, text
 from shared.window import PopupWindow
 
 
-DRIFT_US = 1_500_000  # a report this far off the extrapolated position is a seek, not poll jitter
+DRIFT_US = 1_500_000  # a report this far off the extrapolated position is a seek, not latency
 
 
 class MusicWindow(PopupWindow):
-    def __init__(self, monitor: Monitor, music: JsonState):
+    def __init__(self, monitor: Monitor, music: Player):
         self.status = text("Stopped", "music-popup-kicker", xalign=0)
         # line(): long titles ellipsize inside the fixed popup instead of widening the window
         self.track = line("No media player", "music-popup-title")
@@ -42,17 +42,17 @@ class MusicWindow(PopupWindow):
         for art_widget in (self.note, self.cover):
             art_widget.set_no_show_all(True)  # set_art() owns their visibility
         self.art_key: tuple[str, float] | None = None
-        # music.sh reports the position once a second; between reports it is extrapolated per frame
+        # the player reports the position on changes and every few seconds; between reports it is extrapolated per frame
         # (MPRIS: position advances at Rate while Playing), so the bar glides instead of stepping
         self.anchor: tuple[float, float] = (0.0, time.monotonic())  # (position µs, monotonic time)
         self.length, self.playing, self.track_key = 1, False, ""
         self.ticker = 0
 
-        def control(action: str) -> Callable[..., None]:
-            return lambda *_: run(str(SCRIPTS / "music.sh"), action)
+        def control(action: Callable[[], None]) -> Callable[..., None]:
+            return lambda *_: action()
 
-        self.play.connect("clicked", control("play-pause"))
-        self.source.connect("clicked", control("switch"))
+        self.play.connect("clicked", control(music.play_pause))
+        self.source.connect("clicked", control(music.switch))
         popup = Box(
             orientation="v",
             spacing=14,
@@ -77,9 +77,9 @@ class MusicWindow(PopupWindow):
                     h_align="center",
                     style_classes=("music-controls",),
                     children=[
-                        Button(label="󰒮", style_classes=("music-button", "music-control-icon"), on_clicked=control("previous")),
+                        Button(label="󰒮", style_classes=("music-button", "music-control-icon"), on_clicked=control(music.previous)),
                         self.play,
-                        Button(label="󰒭", style_classes=("music-button", "music-control-icon"), on_clicked=control("next")),
+                        Button(label="󰒭", style_classes=("music-button", "music-control-icon"), on_clicked=control(music.next)),
                     ],
                 ),
                 Box(
@@ -107,7 +107,7 @@ class MusicWindow(PopupWindow):
             child=popup,
         )
         self.clip_to(22, popup)
-        # music.sh polls MPRIS every second; only run it while the popup is shown.
+        # D-Bus signals are watched only while the popup is shown.
         self.connect("show", lambda *_: music.start() or self.start_ticker())
         self.connect("hide", lambda *_: music.stop() or self.stop_ticker())
         music.subscribe(self.update)
@@ -127,8 +127,8 @@ class MusicWindow(PopupWindow):
         self.length = max(int(value.get("length", 1)), 1)
         self.duration.set_text(str(value.get("duration", "0:00")))
         position, track_key, playing = int(value.get("position", 0)), f"{source}\0{self.track.get_text()}", status == "Playing"
-        # re-anchor on a track/state change or a real seek; small differences are poll latency,
-        # and snapping to them would kick the bar back and forth every second
+        # re-anchor on a track/state change or a real seek; small differences are latency,
+        # and snapping to them would kick the bar back and forth
         if track_key != self.track_key or playing != self.playing or abs(position - self.position()) > DRIFT_US:
             self.anchor = (position, time.monotonic())
         self.track_key, self.playing = track_key, playing
@@ -159,7 +159,7 @@ class MusicWindow(PopupWindow):
             self.ticker = 0
 
     def set_art(self, art: str | None) -> None:
-        # update() runs every second (position); decode the cover only when it changes.
+        # update() runs on every player change; decode the cover only when it changes.
         try:
             key = (art, os.stat(art).st_mtime) if art else None
         except OSError:

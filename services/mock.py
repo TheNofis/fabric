@@ -23,7 +23,7 @@ def json_for(script: str) -> object:
             {"name": name, "focused": name == "4", "visible": name in {"1", "4"}, "urgent": False, "output": "eDP-1"}
             for name in ("1", "2", "3", "4", "5", "6", "7")
         ]
-    if name == "music.sh":
+    if name == "music":
         return {"status": "Playing", "title": "Midnight City", "artist": "M83", "position": 112, "length": 268, "elapsed": "1:52", "duration": "4:28", "art": "", "source": "iPhone Spotify", "phone": True, "players": 2}
     if name == "gpu.sh":
         return {"name": "NVIDIA GeForce GTX 1660", "load": 42, "temp": 58, "power": 74, "mem_used": 3072, "mem_total": 6144}

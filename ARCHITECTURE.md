@@ -38,7 +38,7 @@ launch.sh
           ├─ claude/                    лимиты Claude: слот в баре + панель; данные — scripts/claude.py
           ├─ display/                   яркость, контраст, гамма, теплота, пресеты
           ├─ bar/                       status bar + tray; workspaces.py — i3 IPC в процессе; панели из shell.modules
-          ├─ music/                     music popup (logic: время трека, локальная обложка)
+          ├─ music/                     music popup; player.py — MPRIS по D-Bus сигналам (logic: время, обложка)
           ├─ volume_osd/                OSD: громкость и раскладка
           ├─ notifications/             popup + notification center
           │   ├─ record.py              NotificationRecord, чтение с шины, история на диске
@@ -57,7 +57,7 @@ launch.sh
           ├─ lock/                      экран блокировки
           └─ auth/                      окно пароля для polkit, gnome-keyring и ssh askpass
 
-scripts/                                 PipeWire / MPRIS → JSON-строки
+scripts/                                 PipeWire, nmcli, GPU, голос → JSON-строки
 style.css                                порядок @import = каскад: styles/{tokens,ui,base}.css, modules/*/style.css, styles/buttons.css
 design.toml, styles/tokens.css           токены визуальной системы
 sites.toml                               сайты для лаунчера
